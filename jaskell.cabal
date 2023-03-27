@@ -1,0 +1,31 @@
+cabal-version: 2.4
+name:          jaskell
+version:       0.1.0.0
+author:        Owen Bechtel
+maintainer:    ombspring@gmail.com
+
+-- category:
+-- synopsis:
+
+-- description: 
+
+homepage:           https://github.com/UnaryPlus/jaskell
+bug-reports:        https://github.com/UnaryPlus/jaskell/issues
+license:            MIT
+license-file:       LICENSE
+extra-source-files: CHANGELOG.md, README.md
+
+source-repository head
+  type: git
+  location: https://github.com/UnaryPlus/jaskell.git
+
+library
+  hs-source-dirs:   src
+  default-language: Haskell2010
+  ghc-options:      -Wall
+
+  exposed-modules:
+    Jaskell,
+    Jaskell.Prelude
+
+  -- build-depends:
