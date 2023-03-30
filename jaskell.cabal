@@ -28,4 +28,5 @@ library
     Jaskell,
     Jaskell.Prelude
 
-  -- build-depends:
+  build-depends:
+    base

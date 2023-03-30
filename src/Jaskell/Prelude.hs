@@ -1,9 +1,14 @@
-{-# LANGUAGE PatternSynonyms #-}
+module Jaskell.Prelude where
 
-module Jaskell.Prelude () where
+import qualified Jaskell
+import Data.List (foldl')
+import Control.Applicative (liftA2)
 
--- stack: not well-typed
--- unstack: not well-typed
+stack :: s -> (s, s)
+stack s = (s, s)
+
+unstack :: (s, a) -> a
+unstack = snd
 
 newstack :: a -> ()
 newstack _ = ()
@@ -30,10 +35,10 @@ dup2 :: ((s, a), b) -> ((((s, a), b), a), b)
 dup2 ((s, x), y) = ((((s, x), y), x), y)
 
 swapd :: (((s, a), b), c) -> (((s, b), a), c)
-swapd (((s, x), y, z)) = (((s, y), x), z)
+swapd (((s, x), y), z) = (((s, y), x), z)
 
 rollup :: (((s, a), b), c) -> (((s, c), a), b)
-rollup (((s, x), y), z) = (((s, z), s), y)
+rollup (((s, x), y), z) = (((s, z), x), y)
 
 rolldown :: (((s, a), b), c) -> (((s, b), c), a)
 rolldown (((s, x), y), z) = (((s, y), z), x)
@@ -57,12 +62,11 @@ cons ((s, x), xs) = (s, x : xs)
 swons :: ((s, [a]), a) -> (s, [a])
 swons ((s, xs), x) = (s, x : xs)
 
-conjoin :: ((s, a -> (b, Bool)), a -> (b, Bool)) -> (s, a -> ((), Bool))
-conjoin
+conjoin :: ((s, t -> (u1, Bool)), t -> (u2, Bool)) -> (s, t -> (t, Bool))
+conjoin ((s, p1), p2) = (s, \t -> (t, snd (p1 t) && snd (p2 t)))
 
--- conjoin
--- disjoin
--- negate
+disjoin :: ((s, t -> (u1, Bool)), t -> (u2, Bool)) -> (s, t -> (t, Bool))
+disjoin ((s, p1), p2) = (s, \t -> (t, snd (p1 t) || snd (p2 t)))
 
 i :: (s, s -> t) -> t
 i (s, f) = f s
@@ -70,8 +74,14 @@ i (s, f) = f s
 comp :: ((s, a -> b), b -> c) -> (s, a -> c)
 comp ((s, f), g) = (s, g . f)
 
+consq :: ((s, a), (t, a) -> c) -> (s, t -> c)
+consq ((s, x), f) = (s, \t -> f (t, x))
+
+swonsq :: ((s, (t, a) -> c), a) -> (s, t -> c)
+swonsq ((s, f), x) = (s, \t -> f (t, x))
+
 nullary :: (s, s -> (t, a)) -> (s, a)
-nullary (s, f) = (s, snd f)
+nullary (s, f) = (s, snd (f s))
 
 dip :: ((s, a), s -> t) -> (t, a)
 dip ((s, x), f) = (f s, x)
@@ -83,7 +93,7 @@ dipdd :: ((((s, a), b), c), s -> t) -> (((t, a), b), c)
 dipdd ((((s, x), y), z), f) = (((f s, x), y), z)
 
 -- private
-top :: ((a, b) -> (c, d)) -> a -> b -> c
+top :: ((a, b) -> (c, d)) -> a -> b -> d
 top f s x = snd (f (s, x))
 
 app1 :: ((s, a), (s, a) -> (t, b)) -> (s, b)
@@ -104,7 +114,7 @@ ifte (((s, p), f), g) = if snd (p s) then f s else g s
 whiledo :: ((s, s -> (t, Bool)), s -> s) -> s
 whiledo ((s, p), f) = 
   if snd (p s) then whiledo ((f s, p), f)
-  else e
+  else s
 
 tailrec :: (((s, s -> (t, Bool)), s -> u), s -> s) -> u
 tailrec (((s, p), f), g) =
@@ -116,21 +126,61 @@ linrec ((((s, p), f), g), h) =
   if snd (p s) then f s
   else h (linrec ((((g s, p), f), g), h))
 
-{-
-binrec ((((s, p), f), g), h) = 
+binrec :: (((((s, a), (s, a) -> (t, Bool)), (s, a) -> (u, b)), (s, a) -> ((s, a), a)), ((s, b), b) -> (u, b)) -> (u, b)
+binrec ((((s, p), f), g), h) =
   if snd (p s) then f s
   else let 
     ((s', x), y) = g s
-    s1 = (s', x)
-    s2 = (s', y)
-    s1' = binrec ((((s1, p), f), g), h)
-    s2' = binrec ((((s2, p), f), g), h)
-  in h s1' s2'
--}
+    (_, x') = binrec (((((s', x), p), f), g), h)
+    (_, y') = binrec (((((s', y), p), f), g), h)
+    in h ((s', x'), y')
 
--- binrec
--- genrec
--- primrec
--- cond  
--- condlinrec
--- construct
+-- genrec?
+
+natrec :: (((s, Int), s -> (t, b)), ((s, Int), b) -> (t, b)) -> (t, b)
+natrec (((s, n), f), g) =
+  if n <= 0 then f s
+  else g ((s, n), snd (natrec (((s, n - 1), f), g)))
+
+listrec :: (((s, [a]), s -> (t, b)), ((s, a), b) -> (t, b)) -> (t, b)
+listrec (((s, xs), f), g) =
+  case xs of
+    [] -> f s
+    x:xt -> g ((s, x), snd (natrec (((s, xt), f), g)))
+
+cond :: ((s, [(s -> (t, Bool), s -> u)]), s -> u) -> u
+cond ((s, ps), dft) = (foldr test dft ps) s
+  where test (p, f) f' = if snd (p s) then f else f'
+
+data CLROption s u 
+  = Stop (s -> u)
+  | Recurse (s -> s) (u -> u)
+
+condlinrec :: ((s, [(s -> (t, Bool), CLROption s u)]), CLROption s u) -> u 
+condlinrec ((s, ps), dft) = foldr test (interpret dft) ps
+  where test (p, f) f' = if snd (p s) then interpret f else f'
+        iterpret (Stop f) = f s
+        interpret (Recurse f g) = g (condlinrec ((f s, ps), dft))
+
+-- construct: not well-typed?
+
+branch :: (((s, Bool), s -> t), s -> t) -> t
+branch (((s, b), f), g) = if b then f s else g s
+
+times :: ((s, Int), s -> s) -> s
+times ((s, n), f) = go n id
+  where go k g = if k <= 0 then g else go (k - 1) (f . g)
+
+infra :: ((s, t), t -> u) -> (s, u)
+infra ((s, x), f) = (s, f x)
+
+step :: Foldable t => ((s, t a), (s, a) -> s) -> s
+step ((s, xs), f) = foldl' (curry f) s xs
+
+-- private
+assoc :: (((a, b), c) -> d) -> a -> (b, c) -> d 
+assoc f x (y, z) = f ((x, y), z)
+
+step2 :: (((s, [a]), [b]), ((s, a), b) -> s) -> s
+step2 (((s, xs), ys), f) = foldl' (assoc f) s (liftA2 (,) xs ys)
+
