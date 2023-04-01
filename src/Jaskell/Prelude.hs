@@ -174,7 +174,7 @@ times ((s, n), f) = go n id
 infra :: ((s, t), t -> u) -> (s, u)
 infra ((s, x), f) = (s, f x)
 
-step :: Foldable t => ((s, t a), (s, a) -> s) -> s
+step :: ((s, [a]), (s, a) -> s) -> s
 step ((s, xs), f) = foldl' (curry f) s xs
 
 -- private
@@ -184,3 +184,29 @@ assoc f x (y, z) = f ((x, y), z)
 step2 :: (((s, [a]), [b]), ((s, a), b) -> s) -> s
 step2 (((s, xs), ys), f) = foldl' (assoc f) s (liftA2 (,) xs ys)
 
+-- TODO: figure out which of these joy uses
+map :: ((s, [a]), (s, a) -> (t, b)) -> (s, [b])
+map ((s, xs), f) = (s, map (snd . f) xs)
+
+mapS :: ((s, [a]), (s, a) -> (s, b)) -> (s, [b])
+mapS ((s, xs), f) = case xs of 
+  [] -> (s, [])
+  x:xt -> let (s', y) = f (s, x) in fmap (y:) $ map ((s', xt), f)
+
+-- fold: special case of step?
+
+filter :: ((s, [a]), (s, a) -> (s, Bool)) -> (s, [a])
+filter ((s, xs), f) = case xs of -- TODO: cleanup definition
+  [] -> (s, [])
+  x:xt -> let 
+    (s', b) = f (s, x) 
+    res = filter ((s', xt), f)
+  in if b then fmap (x:) res else res
+
+split :: ((s, [a]), (s, a) -> (s, Bool)) -> ((s, [a]), [a])
+split ((s, xs), f) = case xs of
+  [] -> ((s, []), [])
+  x:xt -> let
+    (s', b) = f (s, x)
+    ((res, trues), falses) = split ((s', xt), f)
+  in if b then ((res, x:trues), falses) else ((res, trues), x:falses)
