@@ -188,11 +188,6 @@ step2 (((s, xs), ys), f) = foldl' (assoc f) s (liftA2 (,) xs ys)
 map :: ((s, [a]), (s, a) -> (t, b)) -> (s, [b])
 map ((s, xs), f) = (s, map (snd . f) xs)
 
-mapS :: ((s, [a]), (s, a) -> (s, b)) -> (s, [b])
-mapS ((s, xs), f) = case xs of 
-  [] -> (s, [])
-  x:xt -> let (s', y) = f (s, x) in fmap (y:) $ map ((s', xt), f)
-
 -- fold: special case of step?
 
 filter :: ((s, [a]), (s, a) -> (s, Bool)) -> (s, [a])
