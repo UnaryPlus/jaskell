@@ -1,4 +1,20 @@
-module Jaskell.Prelude where
+module Jaskell.Prelude 
+  ( stack, unstack, newstack
+  , pop, dup, swap, popd , pop2 , dupd, dup2, swapd, rollup, rolldown
+  , choice, select
+  , pair, unpair
+  , cons, swons
+  , conjoin, disjoin
+  , i, comp
+  , consQ, swonsQ
+  , nullary, dip, dipd, dipdd
+  , app1, app2, app3, cleave
+  , ifte, whiledo
+  , tailrec, linrec, binrec, natrec, listrec
+  , cond, condlinrec
+  , branch, times, infra
+  , step, step2, map, mapS, filter, filterS, split, splitS
+  ) where
 
 import qualified Prelude
 import Prelude hiding (map, filter)
@@ -75,11 +91,11 @@ i (s, f) = f s
 comp :: ((s, a -> b), b -> c) -> (s, a -> c)
 comp ((s, f), g) = (s, g . f)
 
-consq :: ((s, a), (t, a) -> c) -> (s, t -> c)
-consq ((s, x), f) = (s, \t -> f (t, x))
+consQ :: ((s, a), (t, a) -> c) -> (s, t -> c)
+consQ ((s, x), f) = (s, \t -> f (t, x))
 
-swonsq :: ((s, (t, a) -> c), a) -> (s, t -> c)
-swonsq ((s, f), x) = (s, \t -> f (t, x))
+swonsQ :: ((s, (t, a) -> c), a) -> (s, t -> c)
+swonsQ ((s, f), x) = (s, \t -> f (t, x))
 
 nullary :: (s, s -> (t, a)) -> (s, a)
 nullary (s, f) = (s, snd (f s))
@@ -136,7 +152,9 @@ binrec ((((s, p), f), g), h) =
     (_, y') = binrec (((((s', y), p), f), g), h)
     in h ((s', x'), y')
 
+----------
 -- genrec?
+----------
 
 natrec :: (((s, Int), s -> (t, b)), ((s, Int), b) -> (t, b)) -> (t, b)
 natrec (((s, n), f), g) =
@@ -147,7 +165,7 @@ listrec :: (((s, [a]), s -> (t, b)), ((s, a), b) -> (t, b)) -> (t, b)
 listrec (((s, xs), f), g) =
   case xs of
     [] -> f s
-    x:xt -> g ((s, x), snd (natrec (((s, xt), f), g)))
+    x:xt -> g ((s, x), snd (listrec (((s, xt), f), g)))
 
 cond :: ((s, [(s -> (t, Bool), s -> u)]), s -> u) -> u
 cond ((s, ps), dft) = (foldr test dft ps) s
@@ -163,14 +181,16 @@ condlinrec ((s, ps), dft) = foldr test (interpret dft) ps
         interpret (Stop f) = f s
         interpret (Recurse f g) = g (condlinrec ((f s, ps), dft))
 
--- construct: not well-typed?
+-----------------------------
+-- construct: not well typed?
+-----------------------------
 
 branch :: (((s, Bool), s -> t), s -> t) -> t
 branch (((s, b), f), g) = if b then f s else g s
 
 times :: ((s, Int), s -> s) -> s
-times ((s, n), f) = go n id
-  where go k g = if k <= 0 then g else go (k - 1) (f . g)
+times ((s, n), f) = go n s
+  where go k s' = if k <= 0 then s' else go (k - 1) (f s')
 
 infra :: ((s, t), t -> u) -> (s, u)
 infra ((s, x), f) = (s, f x)
@@ -192,6 +212,10 @@ mapS :: ((s, [a]), (s, a) -> (s, b)) -> (s, [b])
 mapS ((s, xs), f) = case xs of 
   [] -> (s, [])
   x:xt -> let (s', y) = f (s, x) in (y:) <$> mapS ((s', xt), f)
+
+----------------------
+-- fold: just use step
+----------------------
 
 filter :: ((s, [a]), (s, a) -> (t, Bool)) -> (s, [a])
 filter ((s, xs), f) = (s, Prelude.filter (\x -> snd (f (s, x))) xs)
