@@ -1,7 +1,8 @@
 module Jaskell.Prelude where
 
-import qualified Jaskell
-import Data.List (foldl')
+import qualified Prelude
+import Prelude hiding (map, filter)
+import Data.List (foldl', partition)
 import Control.Applicative (liftA2)
 
 stack :: s -> (s, s)
@@ -159,7 +160,7 @@ data CLROption s u
 condlinrec :: ((s, [(s -> (t, Bool), CLROption s u)]), CLROption s u) -> u 
 condlinrec ((s, ps), dft) = foldr test (interpret dft) ps
   where test (p, f) f' = if snd (p s) then interpret f else f'
-        iterpret (Stop f) = f s
+        interpret (Stop f) = f s
         interpret (Recurse f g) = g (condlinrec ((f s, ps), dft))
 
 -- construct: not well-typed?
@@ -184,24 +185,34 @@ assoc f x (y, z) = f ((x, y), z)
 step2 :: (((s, [a]), [b]), ((s, a), b) -> s) -> s
 step2 (((s, xs), ys), f) = foldl' (assoc f) s (liftA2 (,) xs ys)
 
--- TODO: figure out which of these joy uses
 map :: ((s, [a]), (s, a) -> (t, b)) -> (s, [b])
-map ((s, xs), f) = (s, map (snd . f) xs)
+map ((s, xs), f) = (s, Prelude.map (\x -> snd (f (s, x))) xs)
 
--- fold: special case of step?
+mapS :: ((s, [a]), (s, a) -> (s, b)) -> (s, [b])
+mapS ((s, xs), f) = case xs of 
+  [] -> (s, [])
+  x:xt -> let (s', y) = f (s, x) in (y:) <$> mapS ((s', xt), f)
 
-filter :: ((s, [a]), (s, a) -> (s, Bool)) -> (s, [a])
-filter ((s, xs), f) = case xs of -- TODO: cleanup definition
+filter :: ((s, [a]), (s, a) -> (t, Bool)) -> (s, [a])
+filter ((s, xs), f) = (s, Prelude.filter (\x -> snd (f (s, x))) xs)
+
+filterS :: ((s, [a]), (s, a) -> (s, Bool)) -> (s, [a])
+filterS ((s, xs), f) = case xs of
   [] -> (s, [])
   x:xt -> let 
     (s', b) = f (s, x) 
-    res = filter ((s', xt), f)
-  in if b then fmap (x:) res else res
+    res = filterS ((s', xt), f)
+    in if b then (x:) <$> res else res
 
-split :: ((s, [a]), (s, a) -> (s, Bool)) -> ((s, [a]), [a])
-split ((s, xs), f) = case xs of
+split :: ((s, [a]), (s, a) -> (t, Bool)) -> ((s, [a]), [a])
+split ((s, xs), f) = 
+  let (trues, falses) = partition (\x -> snd (f (s, x))) xs
+  in ((s, trues), falses)
+
+splitS :: ((s, [a]), (s, a) -> (s, Bool)) -> ((s, [a]), [a])
+splitS ((s, xs), f) = case xs of
   [] -> ((s, []), [])
   x:xt -> let
     (s', b) = f (s, x)
-    ((res, trues), falses) = split ((s', xt), f)
-  in if b then ((res, x:trues), falses) else ((res, trues), x:falses)
+    ((res, trues), falses) = splitS ((s', xt), f)
+    in if b then ((res, x:trues), falses) else ((res, trues), x:falses)
