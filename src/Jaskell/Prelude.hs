@@ -14,10 +14,11 @@ module Jaskell.Prelude
   , cond, condlinrec
   , branch, times, infra
   , step, step2, map, mapS, filter, filterS, split, splitS
+  , any, all, zipwith, zipwithS
   ) where
 
 import qualified Prelude
-import Prelude hiding (map, filter)
+import Prelude hiding (map, filter, any, all, zipWith)
 import Data.List (foldl', partition)
 import Control.Applicative (liftA2)
 
@@ -240,3 +241,20 @@ splitS ((s, xs), f) = case xs of
     (s', b) = f (s, x)
     ((res, trues), falses) = splitS ((s', xt), f)
     in if b then ((res, x:trues), falses) else ((res, trues), x:falses)
+
+any :: ((s, [a]), (s, a) -> (t, Bool)) -> (s, Bool)
+any ((s, xs), f) = (s, Prelude.any (\x -> snd (f (s, x))) xs)
+
+all :: ((s, [a]), (s, a) -> (t, Bool)) -> (s, Bool)
+all ((s, xs), f) = (s, Prelude.all (\x -> snd (f (s, x))) xs)
+
+zipwith :: (((s, [a]), [b]), ((s, a), b) -> (t, c)) -> (s, [c])
+zipwith (((s, xs), ys), f) = (s, Prelude.zipWith (\x y -> snd (f ((s, x), y))) xs ys)
+
+zipwithS :: (((s, [a]), [b]), ((s, a), b) -> (s, c)) -> (s, [c])
+zipwithS (((s, xs), ys), f) = case (xs, ys) of
+  ([], _) -> []
+  (_, []) -> []
+  (x:xt, y:yt) -> let
+    (s', z) = f ((s, x), y)
+    in (z:) <$> zipwithS (((s', xt), yt), f)
