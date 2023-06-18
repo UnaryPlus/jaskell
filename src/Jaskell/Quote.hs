@@ -156,6 +156,15 @@ parseDef = (,) <$ M.chunk "DEF" <* spaces <*> lowerName <* spaces <* symbol '=' 
 parseProgram :: Parser Program
 parseProgram = Program <$> M.many parseDef <*> parseExpr
 
+setLoc :: (Int, Int) -> Parser ()
+setLoc (line, col) =
+  updateParserState $ \state ->
+    let posState = statePosState state
+        sourcePos = pstateSourcePos posState
+        sourcePos' = sourcePos { sourceLine = line, sourceColumn = col }
+        posState' = posState { pstateSourcePos = sourcePos' }
+    in state { statePosState = posState' }
+
 jsl :: QuasiQuoter
 jsl = QuasiQuoter { quoteExp = quote }
 
@@ -167,7 +176,7 @@ quote input = do
       parse = setLoc (line, col) >> spaces >> (parseProgram <* M.eof)
   case M.runParser parse file input of 
     Left errors -> fail (M.errorBundlePretty errors)
-    Right prog -> convertProg prog
+    Right prog -> convertProgram prog
 
 comp :: [ExpQ] -> ExpQ
 comp = foldr1 (\f g -> infixE f (var '(.)) g)
@@ -209,7 +218,7 @@ convertAtom = \case
   Tup x1 x2 -> comp [ convertExpr x1, convertExpr x2, 'Pre.pair ]
   
   Quote x -> appE 'Jaskell.push (convertExpr x)
-
+  
   Lit lit -> convertLiteral lit
 
 convertExpr :: Expr -> ExpQ
@@ -218,6 +227,6 @@ convertExpr (Expr xs) -> comp (map convertAtom xs)
 convertDef :: (String, Expr) -> DecQ
 convertDef (n, x) = funD (newName n) [ clause [] (normalB x) [] ]
 
-convertProg :: Program -> ExpQ
-convertProg (Program defs x) = letE (map convertDef defs) (convertExpr x)
+convertProgram :: Program -> ExpQ
+convertProgram (Program defs x) = letE (map convertDef defs) (convertExpr x)
 

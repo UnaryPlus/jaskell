@@ -1,6 +1,9 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE TupleSections #-}
-module Jaskell (push, liftS, liftS2, pushM, popM, liftSM) where
+module Jaskell 
+  ( push, liftS, liftS2, pushM, popM, liftSM
+  , run, runOn, runK, runKOn
+  ) where
 
 import Control.Arrow (Kleisli(Kleisli))
 
@@ -21,3 +24,15 @@ popM f = Kleisli \(s, x) -> fmap (const s) (f x)
 
 liftSM :: Functor m => (a -> m b) -> Kleisli m (s, a) (s, b)
 liftSM f = Kleisli \(s, x) -> fmap (s, ) (f x)
+
+run :: (() -> t) -> t
+run f = f ()
+
+runOn :: s -> (s -> t) -> t
+runOn s f = f s
+
+runK :: Kleisli m () t -> m t
+runK (Kleisli f) = f ()
+
+runKOn :: s -> Kleisli m s t -> m t
+runKOn s (Kleisli f) = f s

@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 module Jaskell.Prelude 
   ( stack, unstack, newstack
   , pop, dup, swap, popd , pop2 , dupd, dup2, swapd, rollup, rolldown
@@ -21,131 +22,132 @@ import qualified Prelude
 import Prelude hiding (map, filter, any, all, zipWith)
 import Data.List (foldl', partition)
 import Control.Applicative (liftA2)
+import Control.Arrow (Arrow, arr)
 
-stack :: s -> (s, s)
-stack s = (s, s)
+stack :: Arrow arr => arr s (s, s)
+stack = arr \s -> (s, s)
 
-unstack :: (s, a) -> a
-unstack = snd
+unstack :: Arrow arr => arr (s, a) a
+unstack = arr snd
 
-newstack :: a -> ()
-newstack _ = ()
+newstack :: Arrow arr => arr a ()
+newstack = arr (const ())
 
-pop :: (s, a) -> s
-pop = fst
+pop :: Arrow arr => arr (s, a) s
+pop = arr fst
 
-dup :: (s, a) -> ((s, a), a)
-dup (s, x) = ((s, x), x)
+dup :: Arrow arr => arr (s, a) ((s, a), a)
+dup = arr \(s, x) = ((s, x), x)
 
-swap :: ((s, a), b) -> ((s, b), a)
-swap ((s, x), y) = ((s, y), x)
+swap :: Arrow arr => arr ((s, a), b) ((s, b), a)
+swap = arr \((s, x), y) = ((s, y), x)
 
-popd :: ((s, a), b) -> (s, b)
-popd ((s, _), y) = (s, y)
+popd :: Arrow arr => arr ((s, a), b) (s, b)
+popd = arr \((s, _), y) = (s, y)
 
-pop2 :: ((s, a), b) -> s
-pop2 = fst . fst
+pop2 :: Arrow arr => arr ((s, a), b) s
+pop2 = arr \= fst . fst
 
-dupd :: ((s, a), b) -> (((s, a), a), b)
-dupd ((s, x), y) = (((s, x), x), y)
+dupd :: Arrow arr => arr ((s, a), b) (((s, a), a), b)
+dupd = arr \((s, x), y) -> (((s, x), x), y)
 
-dup2 :: ((s, a), b) -> ((((s, a), b), a), b)
-dup2 ((s, x), y) = ((((s, x), y), x), y)
+dup2 :: Arrow arr => arr ((s, a), b) ((((s, a), b), a), b)
+dup2 = arr \((s, x), y) -> ((((s, x), y), x), y)
 
-swapd :: (((s, a), b), c) -> (((s, b), a), c)
-swapd (((s, x), y), z) = (((s, y), x), z)
+swapd :: Arrow arr => arr (((s, a), b), c) (((s, b), a), c)
+swapd = arr \(((s, x), y), z) -> (((s, y), x), z)
 
-rollup :: (((s, a), b), c) -> (((s, c), a), b)
-rollup (((s, x), y), z) = (((s, z), x), y)
+rollup :: Arrow arr => arr (((s, a), b), c) (((s, c), a), b)
+rollup = arr \(((s, x), y), z) -> (((s, z), x), y)
 
-rolldown :: (((s, a), b), c) -> (((s, b), c), a)
-rolldown (((s, x), y), z) = (((s, y), z), x)
+rolldown :: Arrow arr => arr (((s, a), b), c) (((s, b), c), a)
+rolldown = arr \(((s, x), y), z) -> (((s, y), z), x)
 
-choice :: (((s, Bool), a), a) -> (s, a)
-choice (((s, b), x), y) = (s, if b then x else y)
+choice :: Arrow arr => arr (((s, Bool), a), a) (s, a)
+choice = arr \(((s, b), x), y) -> (s, if b then x else y)
 
-select :: Eq a => (((s, a), [(a, b)]), b) -> (s, b)
-select (((s, x), ps), dft) = (s, foldr test dft ps)
+select :: (Arrow arr, Eq a) => arr (((s, a), [(a, b)]), b) (s, b)
+select = arr \(((s, x), ps), dft) -> (s, foldr test dft ps)
   where test (x', y) z = if x == x' then y else z
 
-pair :: ((s, a), b) -> (s, (a, b))
-pair ((s, x), y) = (s, (x, y))
+pair :: Arrow arr => arr ((s, a), b) (s, (a, b))
+pair = arr \((s, x), y) -> (s, (x, y))
 
-unpair :: (s, (a, b)) -> ((s, a), b)
-unpair (s, (x, y)) = ((s, x), y)
+unpair :: Arrow arr => arr (s, (a, b)) ((s, a), b)
+unpair = arr \(s, (x, y)) -> ((s, x), y)
 
-cons :: ((s, a), [a]) -> (s, [a])
-cons ((s, x), xs) = (s, x : xs)
+cons :: Arrow arr => arr ((s, a), [a]) (s, [a])
+cons = arr \((s, x), xs) -> (s, x : xs)
 
-swons :: ((s, [a]), a) -> (s, [a])
-swons ((s, xs), x) = (s, x : xs)
+swons :: Arrow arr => arr ((s, [a]), a) (s, [a])
+swons = arr \((s, xs), x) -> (s, x : xs)
 
-conjoin :: ((s, t -> (u1, Bool)), t -> (u2, Bool)) -> (s, t -> (t, Bool))
-conjoin ((s, p1), p2) = (s, \t -> (t, snd (p1 t) && snd (p2 t)))
+conjoin :: Arrow arr => arr ((s, t -> (u1, Bool)), t -> (u2, Bool)) (s, t -> (t, Bool))
+conjoin = arr \((s, p1), p2) -> (s, \t -> (t, snd (p1 t) && snd (p2 t)))
 
-disjoin :: ((s, t -> (u1, Bool)), t -> (u2, Bool)) -> (s, t -> (t, Bool))
-disjoin ((s, p1), p2) = (s, \t -> (t, snd (p1 t) || snd (p2 t)))
+disjoin :: Arrow arr => arr ((s, t -> (u1, Bool)), t -> (u2, Bool)) (s, t -> (t, Bool))
+disjoin = arr \((s, p1), p2) -> (s, \t -> (t, snd (p1 t) || snd (p2 t)))
 
-i :: (s, s -> t) -> t
-i (s, f) = f s
+i :: Arrow arr => arr (s, s -> t) t
+i = arr \(s, f) -> f s
 
-comp :: ((s, a -> b), b -> c) -> (s, a -> c)
-comp ((s, f), g) = (s, g . f)
+comp :: Arrow arr => arr ((s, a -> b), b -> c) (s, a -> c)
+comp = arr \((s, f), g) -> (s, g . f)
 
-consQ :: ((s, a), (t, a) -> c) -> (s, t -> c)
-consQ ((s, x), f) = (s, \t -> f (t, x))
+consQ :: Arrow arr => arr ((s, a), (t, a) -> c) (s, t -> c)
+consQ = arr \((s, x), f) -> (s, \t -> f (t, x))
 
-swonsQ :: ((s, (t, a) -> c), a) -> (s, t -> c)
-swonsQ ((s, f), x) = (s, \t -> f (t, x))
+swonsQ :: Arrow arr => arr ((s, (t, a) -> c), a) (s, t -> c)
+swonsQ = arr \((s, f), x) -> (s, \t -> f (t, x))
 
-nullary :: (s, s -> (t, a)) -> (s, a)
-nullary (s, f) = (s, snd (f s))
+nullary :: Arrow arr => arr (s, s -> (t, a)) (s, a)
+nullary = arr \(s, f) -> (s, snd (f s))
 
-dip :: ((s, a), s -> t) -> (t, a)
-dip ((s, x), f) = (f s, x)
+dip :: Arrow arr => arr ((s, a), s -> t) (t, a)
+dip = arr \((s, x), f) -> (f s, x)
 
-dipd :: (((s, a), b), s -> t) -> ((t, a), b)
-dipd (((s, x), y), f) = ((f s, x), y)
+dipd :: Arrow arr => arr (((s, a), b), s -> t) ((t, a), b)
+dipd = arr \(((s, x), y), f) -> ((f s, x), y)
 
-dipdd :: ((((s, a), b), c), s -> t) -> (((t, a), b), c)
-dipdd ((((s, x), y), z), f) = (((f s, x), y), z)
+dipdd :: Arrow arr => arr ((((s, a), b), c), s -> t) (((t, a), b), c)
+dipdd = arr \((((s, x), y), z), f) -> (((f s, x), y), z)
 
 -- private
 top :: ((a, b) -> (c, d)) -> a -> b -> d
 top f s x = snd (f (s, x))
 
-app1 :: ((s, a), (s, a) -> (t, b)) -> (s, b)
-app1 ((s, x), f) = (s, top f s x)
+app1 :: Arrow arr => arr ((s, a), (s, a) -> (t, b)) (s, b)
+app1 = arr \((s, x), f) -> (s, top f s x)
 
-app2 :: (((s, a), a), (s, a) -> (t, b)) -> ((s, b), b)
-app2 (((s, x), y), f) = ((s, top f s x), top f s y)
+app2 :: Arrow arr => arr (((s, a), a), (s, a) -> (t, b)) ((s, b), b)
+app2 = arr \(((s, x), y), f) -> ((s, top f s x), top f s y)
 
-app3 :: ((((s, a), a), a), (s, a) -> (t, b)) -> (((s, b), b), b)
-app3 ((((s, x), y), z), f) = (((s, top f s x), top f s y), top f s z)
+app3 :: Arrow arr => arr ((((s, a), a), a), (s, a) -> (t, b)) (((s, b), b), b)
+app3 = arr \((((s, x), y), z), f) -> (((s, top f s x), top f s y), top f s z)
 
-cleave :: (((s, a), (s, a) -> (t1, b1)), (s, a) -> (t2, b2)) -> ((s, b1), b2)
-cleave (((s, x), f), g) = ((s, top f s x), top g s x)
+cleave :: Arrow arr => arr (((s, a), (s, a) -> (t1, b1)), (s, a) -> (t2, b2)) ((s, b1), b2)
+cleave = arr \(((s, x), f), g) -> ((s, top f s x), top g s x)
 
-ifte :: (((s, s -> (t, Bool)), s -> u), s -> u) -> u
-ifte (((s, p), f), g) = if snd (p s) then f s else g s 
+ifte :: Arrow arr => arr (((s, s -> (t, Bool)), s -> u), s -> u) u
+ifte = arr \(((s, p), f), g) -> if snd (p s) then f s else g s 
 
-whiledo :: ((s, s -> (t, Bool)), s -> s) -> s
-whiledo ((s, p), f) = 
+whiledo :: Arrow arr => arr ((s, s -> (t, Bool)), s -> s) s
+whiledo = arr \((s, p), f) -> 
   if snd (p s) then whiledo ((f s, p), f)
   else s
 
-tailrec :: (((s, s -> (t, Bool)), s -> u), s -> s) -> u
-tailrec (((s, p), f), g) =
+tailrec :: Arrow arr => arr (((s, s -> (t, Bool)), s -> u), s -> s) u
+tailrec = arr \(((s, p), f), g) ->
   if snd (p s) then f s
   else tailrec (((g s, p), f), g)
 
-linrec :: ((((s, s -> (t, Bool)), s -> u), s -> s), u -> u) -> u
-linrec ((((s, p), f), g), h) =
+linrec :: Arrow arr => arr ((((s, s -> (t, Bool)), s -> u), s -> s), u -> u) u
+linrec = arr \((((s, p), f), g), h) ->
   if snd (p s) then f s
   else h (linrec ((((g s, p), f), g), h))
 
-binrec :: (((((s, a), (s, a) -> (t, Bool)), (s, a) -> (u, b)), (s, a) -> ((s, a), a)), ((s, b), b) -> (u, b)) -> (u, b)
-binrec ((((s, p), f), g), h) =
+binrec :: Arrow arr => arr (((((s, a), (s, a) -> (t, Bool)), (s, a) -> (u, b)), (s, a) -> ((s, a), a)), ((s, b), b) -> (u, b)) (u, b)
+binrec = arr \((((s, p), f), g), h) ->
   if snd (p s) then f s
   else let 
     ((s', x), y) = g s
@@ -157,27 +159,27 @@ binrec ((((s, p), f), g), h) =
 -- genrec?
 ----------
 
-natrec :: (((s, Int), s -> (t, b)), ((s, Int), b) -> (t, b)) -> (t, b)
-natrec (((s, n), f), g) =
+natrec :: Arrow arr => arr (((s, Int), s -> (t, b)), ((s, Int), b) -> (t, b)) (t, b)
+natrec = arr \(((s, n), f), g) ->
   if n <= 0 then f s
   else g ((s, n), snd (natrec (((s, n - 1), f), g)))
 
-listrec :: (((s, [a]), s -> (t, b)), ((s, a), b) -> (t, b)) -> (t, b)
-listrec (((s, xs), f), g) =
+listrec :: Arrow arr => arr (((s, [a]), s -> (t, b)), ((s, a), b) -> (t, b)) (t, b)
+listrec = arr \(((s, xs), f), g) ->
   case xs of
     [] -> f s
     x:xt -> g ((s, x), snd (listrec (((s, xt), f), g)))
 
-cond :: ((s, [(s -> (t, Bool), s -> u)]), s -> u) -> u
-cond ((s, ps), dft) = (foldr test dft ps) s
+cond :: Arrow arr => arr ((s, [(s -> (t, Bool), s -> u)]), s -> u) u
+cond = arr \((s, ps), dft) -> (foldr test dft ps) s
   where test (p, f) f' = if snd (p s) then f else f'
 
 data CLROption s u 
   = Stop (s -> u)
   | Recurse (s -> s) (u -> u)
 
-condlinrec :: ((s, [(s -> (t, Bool), CLROption s u)]), CLROption s u) -> u 
-condlinrec ((s, ps), dft) = foldr test (interpret dft) ps
+condlinrec :: Arrow arr => arr ((s, [(s -> (t, Bool), CLROption s u)]), CLROption s u) u 
+condlinrec = arr \((s, ps), dft) -> foldr test (interpret dft) ps
   where test (p, f) f' = if snd (p s) then interpret f else f'
         interpret (Stop f) = f s
         interpret (Recurse f g) = g (condlinrec ((f s, ps), dft))
@@ -186,31 +188,31 @@ condlinrec ((s, ps), dft) = foldr test (interpret dft) ps
 -- construct: not well typed?
 -----------------------------
 
-branch :: (((s, Bool), s -> t), s -> t) -> t
-branch (((s, b), f), g) = if b then f s else g s
+branch :: Arrow arr => arr (((s, Bool), s -> t), s -> t) t
+branch = arr \(((s, b), f), g) -> if b then f s else g s
 
-times :: ((s, Int), s -> s) -> s
-times ((s, n), f) = go n s
+times :: Arrow arr => arr ((s, Int), s -> s) s
+times = arr \((s, n), f) -> go n s
   where go k s' = if k <= 0 then s' else go (k - 1) (f s')
 
-infra :: ((s, t), t -> u) -> (s, u)
-infra ((s, x), f) = (s, f x)
+infra :: Arrow arr => arr ((s, t), t -> u) (s, u)
+infra = arr \((s, x), f) -> (s, f x)
 
-step :: ((s, [a]), (s, a) -> s) -> s
-step ((s, xs), f) = foldl' (curry f) s xs
+step :: Arrow arr => arr ((s, [a]), (s, a) -> s) s
+step = arr \((s, xs), f) -> foldl' (curry f) s xs
 
 -- private
 assoc :: (((a, b), c) -> d) -> a -> (b, c) -> d 
 assoc f x (y, z) = f ((x, y), z)
 
-step2 :: (((s, [a]), [b]), ((s, a), b) -> s) -> s
-step2 (((s, xs), ys), f) = foldl' (assoc f) s (liftA2 (,) xs ys)
+step2 :: Arrow arr => arr (((s, [a]), [b]), ((s, a), b) -> s) s
+step2 = arr \(((s, xs), ys), f) -> foldl' (assoc f) s (liftA2 (,) xs ys)
 
-map :: ((s, [a]), (s, a) -> (t, b)) -> (s, [b])
-map ((s, xs), f) = (s, Prelude.map (\x -> snd (f (s, x))) xs)
+map :: Arrow arr => arr ((s, [a]), (s, a) -> (t, b)) (s, [b])
+map = arr \((s, xs), f) -> (s, Prelude.map (\x -> snd (f (s, x))) xs)
 
-mapS :: ((s, [a]), (s, a) -> (s, b)) -> (s, [b])
-mapS ((s, xs), f) = case xs of 
+mapS :: Arrow arr => arr ((s, [a]), (s, a) -> (s, b)) (s, [b])
+mapS = arr \((s, xs), f) -> case xs of 
   [] -> (s, [])
   x:xt -> let (s', y) = f (s, x) in (y:) <$> mapS ((s', xt), f)
 
@@ -218,41 +220,41 @@ mapS ((s, xs), f) = case xs of
 -- fold: just use step
 ----------------------
 
-filter :: ((s, [a]), (s, a) -> (t, Bool)) -> (s, [a])
-filter ((s, xs), f) = (s, Prelude.filter (\x -> snd (f (s, x))) xs)
+filter :: Arrow arr => arr ((s, [a]), (s, a) -> (t, Bool)) (s, [a])
+filter = arr \((s, xs), f) -> (s, Prelude.filter (\x -> snd (f (s, x))) xs)
 
-filterS :: ((s, [a]), (s, a) -> (s, Bool)) -> (s, [a])
-filterS ((s, xs), f) = case xs of
+filterS :: Arrow arr => arr ((s, [a]), (s, a) -> (s, Bool)) (s, [a])
+filterS = arr \((s, xs), f) -> case xs of
   [] -> (s, [])
   x:xt -> let 
     (s', b) = f (s, x) 
     res = filterS ((s', xt), f)
     in if b then (x:) <$> res else res
 
-split :: ((s, [a]), (s, a) -> (t, Bool)) -> ((s, [a]), [a])
-split ((s, xs), f) = 
+split :: Arrow arr => arr ((s, [a]), (s, a) -> (t, Bool)) ((s, [a]), [a])
+split = arr \((s, xs), f) ->
   let (trues, falses) = partition (\x -> snd (f (s, x))) xs
   in ((s, trues), falses)
 
-splitS :: ((s, [a]), (s, a) -> (s, Bool)) -> ((s, [a]), [a])
-splitS ((s, xs), f) = case xs of
+splitS :: Arrow arr => arr ((s, [a]), (s, a) -> (s, Bool)) ((s, [a]), [a])
+splitS = arr \((s, xs), f) -> case xs of
   [] -> ((s, []), [])
   x:xt -> let
     (s', b) = f (s, x)
     ((res, trues), falses) = splitS ((s', xt), f)
     in if b then ((res, x:trues), falses) else ((res, trues), x:falses)
 
-any :: ((s, [a]), (s, a) -> (t, Bool)) -> (s, Bool)
-any ((s, xs), f) = (s, Prelude.any (\x -> snd (f (s, x))) xs)
+any :: Arrow arr => arr ((s, [a]), (s, a) -> (t, Bool)) (s, Bool)
+any = arr \((s, xs), f) -> (s, Prelude.any (\x -> snd (f (s, x))) xs)
 
-all :: ((s, [a]), (s, a) -> (t, Bool)) -> (s, Bool)
-all ((s, xs), f) = (s, Prelude.all (\x -> snd (f (s, x))) xs)
+all :: Arrow arr => arr ((s, [a]), (s, a) -> (t, Bool)) (s, Bool)
+all = arr \((s, xs), f) -> (s, Prelude.all (\x -> snd (f (s, x))) xs)
 
-zipwith :: (((s, [a]), [b]), ((s, a), b) -> (t, c)) -> (s, [c])
-zipwith (((s, xs), ys), f) = (s, Prelude.zipWith (\x y -> snd (f ((s, x), y))) xs ys)
+zipwith :: Arrow arr => arr (((s, [a]), [b]), ((s, a), b) -> (t, c)) (s, [c])
+zipwith = arr \(((s, xs), ys), f) -> (s, Prelude.zipWith (\x y -> snd (f ((s, x), y))) xs ys)
 
-zipwithS :: (((s, [a]), [b]), ((s, a), b) -> (s, c)) -> (s, [c])
-zipwithS (((s, xs), ys), f) = case (xs, ys) of
+zipwithS :: Arrow arr => arr (((s, [a]), [b]), ((s, a), b) -> (s, c)) (s, [c])
+zipwithS = arr \(((s, xs), ys), f) -> case (xs, ys) of
   ([], _) -> []
   (_, []) -> []
   (x:xt, y:yt) -> let
