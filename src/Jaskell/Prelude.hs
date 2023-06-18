@@ -37,16 +37,16 @@ pop :: Arrow arr => arr (s, a) s
 pop = arr fst
 
 dup :: Arrow arr => arr (s, a) ((s, a), a)
-dup = arr \(s, x) = ((s, x), x)
+dup = arr \(s, x) -> ((s, x), x)
 
 swap :: Arrow arr => arr ((s, a), b) ((s, b), a)
-swap = arr \((s, x), y) = ((s, y), x)
+swap = arr \((s, x), y) -> ((s, y), x)
 
 popd :: Arrow arr => arr ((s, a), b) (s, b)
-popd = arr \((s, _), y) = (s, y)
+popd = arr \((s, _), y) -> (s, y)
 
 pop2 :: Arrow arr => arr ((s, a), b) s
-pop2 = arr \= fst . fst
+pop2 = arr (fst . fst)
 
 dupd :: Arrow arr => arr ((s, a), b) (((s, a), a), b)
 dupd = arr \((s, x), y) -> (((s, x), x), y)
@@ -67,8 +67,9 @@ choice :: Arrow arr => arr (((s, Bool), a), a) (s, a)
 choice = arr \(((s, b), x), y) -> (s, if b then x else y)
 
 select :: (Arrow arr, Eq a) => arr (((s, a), [(a, b)]), b) (s, b)
-select = arr \(((s, x), ps), dft) -> (s, foldr test dft ps)
-  where test (x', y) z = if x == x' then y else z
+select = arr \(((s, x), ps), dft) -> 
+  let test (x', y) z = if x == x' then y else z
+  in (s, foldr test dft ps)
 
 pair :: Arrow arr => arr ((s, a), b) (s, (a, b))
 pair = arr \((s, x), y) -> (s, (x, y))
@@ -171,18 +172,20 @@ listrec = arr \(((s, xs), f), g) ->
     x:xt -> g ((s, x), snd (listrec (((s, xt), f), g)))
 
 cond :: Arrow arr => arr ((s, [(s -> (t, Bool), s -> u)]), s -> u) u
-cond = arr \((s, ps), dft) -> (foldr test dft ps) s
-  where test (p, f) f' = if snd (p s) then f else f'
+cond = arr \((s, ps), dft) -> 
+  let test (p, f) f' = if snd (p s) then f else f'
+  in foldr test dft ps s
 
 data CLROption s u 
   = Stop (s -> u)
   | Recurse (s -> s) (u -> u)
 
 condlinrec :: Arrow arr => arr ((s, [(s -> (t, Bool), CLROption s u)]), CLROption s u) u 
-condlinrec = arr \((s, ps), dft) -> foldr test (interpret dft) ps
-  where test (p, f) f' = if snd (p s) then interpret f else f'
-        interpret (Stop f) = f s
-        interpret (Recurse f g) = g (condlinrec ((f s, ps), dft))
+condlinrec = arr \((s, ps), dft) -> 
+  let test (p, f) f' = if snd (p s) then interpret f else f'
+      interpret (Stop f) = f s
+      interpret (Recurse f g) = g (condlinrec ((f s, ps), dft))
+  in foldr test (interpret dft) ps
 
 -----------------------------
 -- construct: not well typed?
@@ -192,8 +195,9 @@ branch :: Arrow arr => arr (((s, Bool), s -> t), s -> t) t
 branch = arr \(((s, b), f), g) -> if b then f s else g s
 
 times :: Arrow arr => arr ((s, Int), s -> s) s
-times = arr \((s, n), f) -> go n s
-  where go k s' = if k <= 0 then s' else go (k - 1) (f s')
+times = arr \((s, n), f) -> 
+  let go k s' = if k <= 0 then s' else go (k - 1) (f s')
+  in go n s
 
 infra :: Arrow arr => arr ((s, t), t -> u) (s, u)
 infra = arr \((s, x), f) -> (s, f x)
@@ -255,8 +259,8 @@ zipwith = arr \(((s, xs), ys), f) -> (s, Prelude.zipWith (\x y -> snd (f ((s, x)
 
 zipwithS :: Arrow arr => arr (((s, [a]), [b]), ((s, a), b) -> (s, c)) (s, [c])
 zipwithS = arr \(((s, xs), ys), f) -> case (xs, ys) of
-  ([], _) -> []
-  (_, []) -> []
+  ([], _) -> (s, [])
+  (_, []) -> (s, [])
   (x:xt, y:yt) -> let
     (s', z) = f ((s, x), y)
     in (z:) <$> zipwithS (((s', xt), yt), f)
