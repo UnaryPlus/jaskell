@@ -1,7 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Jaskell.Quote (jsl) where
 
 import Data.Void (Void)
+import Control.Monad (void)
 import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
 
 import qualified Text.Megaparsec as M
@@ -9,14 +11,19 @@ import qualified Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
 
 import qualified Language.Haskell.TH as TH
-import Language.Haskell.TH.Lib (ExpQ)
 import Language.Haskell.TH.Quote (QuasiQuoter(..))
+import Language.Haskell.TH.Lib
 
 import qualified Jaskell
 import qualified Jaskell.Prelude as Pre
 
 jsl :: QuasiQuoter
-jsl = QuasiQuoter { quoteExp = quote }
+jsl = QuasiQuoter 
+  { quoteExp = quote 
+  , quotePat = undefined 
+  , quoteType = undefined
+  , quoteDec = undefined 
+  }
 
 -- must be followed by function/constructor name
 -- $    map function over top value
@@ -49,7 +56,7 @@ data Literal
   = Char Char
   | String String
   | Integer Integer
-  | Rational Rational
+  | Double Double
   | Unit
 
 data Atom
@@ -80,18 +87,18 @@ isNameChar :: Char -> Bool
 isNameChar c = isAsciiLower c || isAsciiUpper c || isDigit c || c `elem` "'_"
 
 lowerName :: Parser String
-lowerName = (:) <$> M.satisfy isAsciiLower <*> M.takeWhileP isNameChar
+lowerName = (:) <$> M.satisfy isAsciiLower <*> M.takeWhileP (Just "identifier charachter") isNameChar
 
 upperName :: Parser String
 upperName = do
   M.notFollowedBy (M.chunk "DEF" >> M.notFollowedBy (M.satisfy isNameChar))
-  (:) <$> M.satisfy isAsciiUpper <*> M.takeWhileP isNameChar
+  (:) <$> M.satisfy isAsciiUpper <*> M.takeWhileP (Just "identifier charachter") isNameChar
 
 parseName :: Parser Name
 parseName = reverseModules <$> parseName' []
   where
     parseName' modules = M.choice
-      [ Fun modules <* lowerName
+      [ Fun modules <$> lowerName
       , do m <- upperName
            M.choice 
              [ M.single '.' >> parseName' (m : modules)
@@ -104,23 +111,23 @@ parseName = reverseModules <$> parseName' []
       Ctor ms n -> Ctor (reverse ms) n
 
 isOpChar :: Char -> Bool
-isOpChar c = c `elem` "!#$%&*+./<=>?@\^|-~:"
+isOpChar c = c `elem` "!#$%&*+./<=>?@\\^|-~:"
 
 parseOp :: Parser String
 parseOp = do
   M.notFollowedBy $ M.choice
-    [ M.single '-' >> M.satisfy isDigit
+    [ M.single '-' >> void (M.satisfy isDigit)
     , M.single ';' >> M.notFollowedBy (M.satisfy isOpChar)
     , M.single '=' >> M.notFollowedBy (M.satisfy isOpChar)
     ]
-  M.takeWhile1P isOpChar
+  M.takeWhile1P (Just "operator character") isOpChar
 
 parseLiteral :: Parser Literal
 parseLiteral = M.choice
-  [ Char <$ M.single '\'' <*> L.charLiteral <$> M.single '\''
+  [ Char <$ M.single '\'' <*> L.charLiteral <* M.single '\''
   , String <$ M.single '"' <*> M.manyTill L.charLiteral (M.single '"')
   , Integer <$> L.decimal
-  , Rational <$> L.float
+  , Double <$> L.float
   , Unit <$ M.chunk "()"
   ]
 
@@ -151,7 +158,7 @@ parseAtom = M.choice
   ]
 
 parseExpr :: Parser Expr
-parseExpr = Expr <$> M.many1 parseAtom
+parseExpr = Expr <$> M.some parseAtom
 
 parseDef :: Parser (String, Expr)
 parseDef = (,) <$ M.chunk "DEF" <* spaces <*> lowerName <* spaces <* symbol '=' <*> parseExpr <* symbol ';'
@@ -161,25 +168,25 @@ parseProgram = Program <$> M.many parseDef <*> parseExpr
 
 setLoc :: (Int, Int) -> Parser ()
 setLoc (line, col) =
-  updateParserState $ \state ->
-    let posState = statePosState state
-        sourcePos = pstateSourcePos posState
-        sourcePos' = sourcePos { sourceLine = line, sourceColumn = col }
-        posState' = posState { pstateSourcePos = sourcePos' }
-    in state { statePosState = posState' }
+  M.updateParserState $ \state ->
+    let posState = M.statePosState state
+        sourcePos = M.pstateSourcePos posState
+        sourcePos' = sourcePos { M.sourceLine = M.mkPos line, M.sourceColumn = M.mkPos col }
+        posState' = posState { M.pstateSourcePos = sourcePos' }
+    in state { M.statePosState = posState' }
 
 quote :: String -> ExpQ
 quote input = do
   loc <- TH.location
   let file = TH.loc_filename loc
-      (line, col) = TH.start_loc loc
+      (line, col) = TH.loc_start loc
       parse = setLoc (line, col) >> spaces >> (parseProgram <* M.eof)
   case M.runParser parse file input of 
     Left errors -> fail (M.errorBundlePretty errors)
     Right prog -> convertProgram prog
 
 comp :: [ExpQ] -> ExpQ
-comp = foldr1 (\f g -> infixE f (var '(.)) g)
+comp = foldr1 (\f g -> infixE (Just f) (varE '(.)) (Just g))
 
 convertName :: Name -> ExpQ
 convertName = \case
@@ -191,7 +198,7 @@ convertLiteral = \case
   Char c -> litE (charL c)
   String s -> litE (stringL s)
   Integer i -> litE (integerL i)
-  Rational r -> litE (rationalL r)
+  Double r -> litE (rationalL (toRational r))
   Unit -> tupE []
 
 convertAtom :: Atom -> ExpQ
@@ -201,31 +208,31 @@ convertAtom = \case
     case mode of
       Bare -> case n of
         Fun _ _ -> nexp
-        Ctor _ _ -> appE 'Jaskell.push nexp
-      LiftS -> appE 'Jaskell.liftS nexp
-      LiftS2 -> appE 'Jaskell.liftS2 nexp
-      PushM -> appE 'Jaskell.pushM nexp
-      PopM -> appE 'Jaskell.popM nexp
-      LiftSM -> appE 'Jaskell.liftSM nexp
+        Ctor _ _ -> appE (varE 'Jaskell.push) nexp
+      LiftS -> appE (varE 'Jaskell.liftS) nexp
+      LiftS2 -> appE (varE 'Jaskell.liftS2) nexp
+      PushM -> appE (varE 'Jaskell.pushM) nexp
+      PopM -> appE (varE 'Jaskell.popM) nexp
+      LiftSM -> appE (varE 'Jaskell.liftSM) nexp
   
-  Op op -> appE 'Jaskell.liftS2 (infixE Nothing (varE (TH.mkName op)) Nothing)
+  Op op -> appE (varE 'Jaskell.liftS2) (infixE Nothing (varE (TH.mkName op)) Nothing)
   
   List xs -> comp $ 
     map convertExpr xs
-    ++ [ appE 'Jaskell.push (listE []) ]
-    ++ replicate (length xs) 'Pre.cons
+    ++ [ appE (varE 'Jaskell.push) (listE []) ]
+    ++ replicate (length xs) (varE 'Pre.cons)
   
-  Tup x1 x2 -> comp [ convertExpr x1, convertExpr x2, 'Pre.pair ]
+  Tup x1 x2 -> comp [ convertExpr x1, convertExpr x2, varE 'Pre.pair ]
   
-  Quote x -> appE 'Jaskell.push (convertExpr x)
+  Quote x -> appE (varE 'Jaskell.push) (convertExpr x)
   
   Lit lit -> convertLiteral lit
 
 convertExpr :: Expr -> ExpQ
-convertExpr (Expr xs) -> comp (map convertAtom xs)
+convertExpr (Expr xs) = comp (map convertAtom xs)
 
 convertDef :: (String, Expr) -> DecQ
-convertDef (n, x) = funD (newName n) [ clause [] (normalB x) [] ]
+convertDef (n, x) = funD (TH.mkName n) [ clause [] (normalB (convertExpr x)) [] ]
 
 convertProgram :: Program -> ExpQ
 convertProgram (Program defs x) = letE (map convertDef defs) (convertExpr x)

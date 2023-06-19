@@ -26,7 +26,8 @@ library
 
   exposed-modules:
     Jaskell,
-    Jaskell.Prelude
+    Jaskell.Prelude,
+    Jaskell.Quote
 
   build-depends:
     base, megaparsec, template-haskell
