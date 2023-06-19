@@ -1,5 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-module Jaskell.Quote where
+module Jaskell.Quote (jsl) where
 
 import Data.Void (Void)
 import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
@@ -14,6 +14,9 @@ import Language.Haskell.TH.Quote (QuasiQuoter(..))
 
 import qualified Jaskell
 import qualified Jaskell.Prelude as Pre
+
+jsl :: QuasiQuoter
+jsl = QuasiQuoter { quoteExp = quote }
 
 -- must be followed by function/constructor name
 -- $    map function over top value
@@ -164,9 +167,6 @@ setLoc (line, col) =
         sourcePos' = sourcePos { sourceLine = line, sourceColumn = col }
         posState' = posState { pstateSourcePos = sourcePos' }
     in state { statePosState = posState' }
-
-jsl :: QuasiQuoter
-jsl = QuasiQuoter { quoteExp = quote }
 
 quote :: String -> ExpQ
 quote input = do
