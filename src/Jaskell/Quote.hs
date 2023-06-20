@@ -1,6 +1,10 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
-module Jaskell.Quote (jsl) where
+module Jaskell.Quote 
+  ( jsl
+  , NameMode(..), Name(..), Literal(..), Atom(..), Expr(..), Program(..)
+  , Parser, parseName, parseLiteral, parseAtom, parseExpr, parseProgram
+  ) where
 
 import Data.Void (Void)
 import Control.Monad (void)
