@@ -47,7 +47,7 @@ test-suite test
     Jaskell.PreludeSpec,
     Jaskell.QuoteSpec
   
-  build-depends: base, hspec
+  build-depends: base, hspec, jaskell
   
   build-tool-depends:
     hspec-discover:hspec-discover
