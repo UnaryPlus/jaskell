@@ -4,10 +4,10 @@ version:       0.1.0.0
 author:        Owen Bechtel
 maintainer:    ombspring@gmail.com
 
--- category:
--- synopsis:
+-- TODO: category:
+-- TODO: synopsis:
 
--- description: 
+-- TODO: description: 
 
 homepage:           https://github.com/UnaryPlus/jaskell
 bug-reports:        https://github.com/UnaryPlus/jaskell/issues
@@ -29,5 +29,25 @@ library
     Jaskell.Prelude,
     Jaskell.Quote
 
+  -- TODO: add bounds
   build-depends:
-    base, megaparsec, template-haskell
+    base, 
+    megaparsec, 
+    template-haskell
+
+test-suite test
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test 
+  default-language: Haskell2010
+  ghc-options:      -Wall
+  main-is:          Spec.hs
+
+  other-modules:
+    JaskellSpec,
+    Jaskell.PreludeSpec,
+    Jaskell.QuoteSpec
+  
+  build-depends: base, hspec
+  
+  build-tool-depends:
+    hspec-discover:hspec-discover
