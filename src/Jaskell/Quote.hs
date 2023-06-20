@@ -51,10 +51,12 @@ data NameMode
   | PushM  
   | PopM  
   | LiftSM 
+  deriving (Eq, Show)
 
 data Name
   = Fun [String] String
   | Ctor [String] String
+  deriving (Eq, Show)
 
 data Literal
   = Char Char
@@ -62,6 +64,7 @@ data Literal
   | Integer Integer
   | Double Double
   | Unit
+  deriving (Eq, Show)
 
 data Atom
   = Name NameMode Name
@@ -70,10 +73,13 @@ data Atom
   | Tup Expr Expr
   | Quote Expr
   | Lit Literal 
+  deriving (Eq, Show)
 
 newtype Expr = Expr [Atom]
+  deriving (Eq, Show)
 
 data Program = Program [(String, Expr)] Expr
+  deriving (Eq, Show)
 
 type Parser = M.Parsec Void String
 
@@ -121,7 +127,6 @@ parseOp :: Parser String
 parseOp = do
   M.notFollowedBy $ M.choice
     [ M.single '-' >> void (M.satisfy isDigit)
-    , M.single ';' >> M.notFollowedBy (M.satisfy isOpChar)
     , M.single '=' >> M.notFollowedBy (M.satisfy isOpChar)
     ]
   M.takeWhile1P (Just "operator character") isOpChar
@@ -130,10 +135,18 @@ parseLiteral :: Parser Literal
 parseLiteral = M.choice
   [ Char <$ M.single '\'' <*> L.charLiteral <* M.single '\''
   , String <$ M.single '"' <*> M.manyTill L.charLiteral (M.single '"')
+  , M.try (Double <$> L.float)
   , Integer <$> L.decimal
-  , Double <$> L.float
+  , negative
   , Unit <$ M.chunk "()"
   ]
+  where
+    negative = do
+      _ <- M.single '-'
+      M.choice
+        [ M.try (Double . negate <$> L.float)
+        , Integer . negate <$> L.decimal
+        ]
 
 spaces :: Parser ()
 spaces = L.space C.space1
