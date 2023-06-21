@@ -68,9 +68,9 @@ spec = do
   
   describe "Jaskell.Prelude.select" do
     it "works" do
-      run [jsl| 'a' [ ('a', 1), ('b', 2) ] -1 select |] `shouldBe` ((), 1 :: Integer)
-      run [jsl| 'b' [ ('a', 1), ('b', 2) ] -1 select |] `shouldBe` ((), 2 :: Integer)
-      run [jsl| 'c' [ ('a', 1), ('b', 2) ] -1 select |] `shouldBe` ((), -1 :: Integer)
+      run [jsl| 'a' [ ('a', 1), ('b', 2) ] -1 select |] `shouldBe` ((), 1 :: Int)
+      run [jsl| 'b' [ ('a', 1), ('b', 2) ] -1 select |] `shouldBe` ((), 2 :: Int)
+      run [jsl| 'c' [ ('a', 1), ('b', 2) ] -1 select |] `shouldBe` ((), -1 :: Int)
   
   describe "Jaskell.Prelude.pair" do
     it "works" do
@@ -82,25 +82,25 @@ spec = do
   
   describe "cons" do
     it "works" do
-      run [jsl| 0 [1,2,3] cons |] `shouldBe` ((), [0,1,2,3 :: Integer])
+      run [jsl| 0 [1,2,3] cons |] `shouldBe` ((), [0,1,2,3 :: Int])
   
   describe "swons" do
     it "works" do
-      run [jsl| [1,2,3] 0 swons |] `shouldBe` ((), [0,1,2,3 :: Integer])
+      run [jsl| [1,2,3] 0 swons |] `shouldBe` ((), [0,1,2,3 :: Int])
   
   describe "conjoin" do
     it "works" do
       let test = [jsl| { 3 > } { 5 < } conjoin i |]
-      runOn ((), 3) test `shouldBe` (((), 3 :: Integer), False)
-      runOn ((), 4) test `shouldBe` (((), 4 :: Integer), True)
-      runOn ((), 5) test `shouldBe` (((), 5 :: Integer), False)
+      runOn ((), 3) test `shouldBe` (((), 3 :: Int), False)
+      runOn ((), 4) test `shouldBe` (((), 4 :: Int), True)
+      runOn ((), 5) test `shouldBe` (((), 5 :: Int), False)
   
   describe "disjoin" do
     it "works" do
       let test = [jsl| { 7 <= } { 9 >= } disjoin i |]
-      runOn ((), 7) test `shouldBe` (((), 7 :: Integer), True)
-      runOn ((), 8) test `shouldBe` (((), 8 :: Integer), False)
-      runOn ((), 9) test `shouldBe` (((), 9 :: Integer), True)
+      runOn ((), 7) test `shouldBe` (((), 7 :: Int), True)
+      runOn ((), 8) test `shouldBe` (((), 8 :: Int), False)
+      runOn ((), 9) test `shouldBe` (((), 9 :: Int), True)
   
   describe "i" do
     it "works" do
@@ -120,11 +120,51 @@ spec = do
 
   describe "nullary" do
     it "works" do
-      run [jsl| 5 7 { + } nullary |] `shouldBe` ((((), 5), 7), 12 :: Integer)
+      run [jsl| 5 7 { + } nullary |] `shouldBe` ((((), 5), 7), 12 :: Int)
 
   describe "dip" do
     it "works" do
-      run [jsl| 'a' 'b' 'c' { newstack } dip |] `shouldBe`
+      run [jsl| 'a' 'b' 'c' { newstack } dip |] `shouldBe` ((), 'c')
+  
+  describe "dipd" do
+    it "works" do
+      run [jsl| 'a' 'b' 'c' 'd' { swap } dipd |] `shouldBe` (((((), 'b'), 'a'), 'c'), 'd')
+  
+  describe "dipdd" do
+    it "works" do
+      run [jsl| 'a' 'b' 'c' 'd' { pop 'x' } dipdd |] `shouldBe` (((((), 'x'), 'b'), 'c'), 'd')
+  
+  describe "app1" do
+    it "works" do
+      run [jsl| 'a' 'b' { pop } app1 |] `shouldBe` (((), 'a'), 'a')
+  
+  describe "app2" do
+    it "works" do
+      run [jsl| 4 5 { dup * } app2 |] `shouldBe` (((), 16), 25 :: Int)
+  
+  describe "app3" do
+    it "works" do
+      run [jsl| 0 'a' 'b' 'c' { pop 1 + } app3 |] `shouldBe` (((((), 0), 1), 1), 1 :: Int)
+  
+  describe "cleave" do
+    it "works" do
+      run [jsl| 'a' 6 { pop } { 2 #div } cleave |] `shouldBe` ((((), 'a'), 'a'), 3 :: Int)
+  
+  describe "ifte" do
+    it "works" do
+      let test = [jsl| { 5 >= } { 5 - } { id } ifte |]
+      runOn ((), 3) test `shouldBe` ((), 3 :: Int)
+      runOn ((), 6) test `shouldBe` ((), 1 :: Int)
+  
+  describe "whiledo" do
+    it "works" do
+      run [jsl| 10 { 0 >= } { 2 - } whiledo |] `shouldBe` ((), -2 :: Int)
+  
+  {-
+  describe "tailrec" do
+    it "works" do
+      run [jsl| |] `shouldBe`
+  -}
 
 {-
   ( stack, unstack, newstack
