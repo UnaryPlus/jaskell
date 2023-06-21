@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE Arrows #-}
 module Jaskell.Prelude 
   ( stack, unstack, newstack
   , pop, dup, swap, popd , pop2 , dupd, dup2, swapd, rollup, rolldown
@@ -22,7 +23,9 @@ import qualified Prelude
 import Prelude hiding (map, filter, any, all, zipWith)
 import Data.List (foldl', partition)
 import Control.Applicative (liftA2)
-import Control.Arrow (Arrow, arr)
+import Control.Arrow (Arrow, ArrowApply, ArrowChoice, arr, (>>>), (>>^), (<<<), (&&&), first, returnA, app)
+
+-- TODO: make arrow types most general
 
 stack :: Arrow arr => arr s (s, s)
 stack = arr \s -> (s, s)
@@ -83,17 +86,21 @@ cons = arr \((s, x), xs) -> (s, x : xs)
 swons :: Arrow arr => arr ((s, [a]), a) (s, [a])
 swons = arr \((s, xs), x) -> (s, x : xs)
 
-conjoin :: Arrow arr => arr ((s, t -> (u1, Bool)), t -> (u2, Bool)) (s, t -> (t, Bool))
-conjoin = arr \((s, p1), p2) -> (s, \t -> (t, snd (p1 t) && snd (p2 t)))
+conjoin :: (Arrow arr, Arrow arr') => arr ((s, arr' t (u1, Bool)), arr' t (u2, Bool)) (s, arr' t (t, Bool))
+conjoin = arr \((s, p1), p2) -> 
+  let p3 = returnA &&& ((p1 >>^ snd) &&& (p2 >>^ snd) >>^ uncurry (&&))
+  in (s, p3)
 
-disjoin :: Arrow arr => arr ((s, t -> (u1, Bool)), t -> (u2, Bool)) (s, t -> (t, Bool))
-disjoin = arr \((s, p1), p2) -> (s, \t -> (t, snd (p1 t) || snd (p2 t)))
+disjoin :: (Arrow arr, Arrow arr') => arr ((s, arr' t (u1, Bool)), arr' t (u2, Bool)) (s, arr' t (t, Bool))
+disjoin = arr \((s, p1), p2) -> 
+  let p3 = returnA &&& ((p1 >>^ snd) &&& (p2 >>^ snd) >>^ uncurry (||))
+  in (s, p3)
 
-i :: Arrow arr => arr (s, s -> t) t
-i = arr \(s, f) -> f s
+i :: ArrowApply arr => arr (s, arr s t) t
+i = (arr \(s, f) -> (f, s)) >>> app
 
-comp :: Arrow arr => arr ((s, a -> b), b -> c) (s, a -> c)
-comp = arr \((s, f), g) -> (s, g . f)
+comp :: (Arrow arr, Arrow arr') => arr ((s, arr' a b), arr' b c) (s, arr' a c)
+comp = arr \((s, f), g) -> (s, f >>> g)
 
 consQ :: Arrow arr => arr ((s, a), (t, a) -> c) (s, t -> c)
 consQ = arr \((s, x), f) -> (s, \t -> f (t, x))
@@ -137,15 +144,24 @@ whiledo = arr \((s, p), f) ->
   if snd (p s) then whiledo ((f s, p), f)
   else s
 
-tailrec :: Arrow arr => arr (((s, s -> (t, Bool)), s -> u), s -> s) u
-tailrec = arr \(((s, p), f), g) ->
-  if snd (p s) then f s
-  else tailrec (((g s, p), f), g)
+tailrec :: (ArrowApply arr, ArrowChoice arr) => arr (((s, arr s (t, Bool)), arr s u), arr s s) u
+tailrec = proc (((s, p), f), g) -> do
+  (_, stop) <- app -< (p, s)
+  if stop
+    then app -< (f, s) 
+    else do
+      s' <- app -< (g, s)
+      tailrec -< (((s', p), f), g)
 
-linrec :: Arrow arr => arr ((((s, s -> (t, Bool)), s -> u), s -> s), u -> u) u
-linrec = arr \((((s, p), f), g), h) ->
-  if snd (p s) then f s
-  else h (linrec ((((g s, p), f), g), h))
+linrec :: (ArrowApply arr, ArrowChoice arr) => arr ((((s, arr s (t, Bool)), arr s u), arr s s), arr u u) u
+linrec = proc ((((s, p), f), g), h) -> do
+  (_, stop) <- app -< (p, s)
+  if stop
+    then app -< (f, s)
+    else do
+      s' <- app -< (g, s)
+      u <- linrec -< ((((s', p), f), g), h)
+      app -< (h, u)
 
 binrec :: Arrow arr => arr (((((s, a), (s, a) -> (t, Bool)), (s, a) -> (u, b)), (s, a) -> ((s, a), a)), ((s, b), b) -> (u, b)) (u, b)
 binrec = arr \((((s, p), f), g), h) ->
