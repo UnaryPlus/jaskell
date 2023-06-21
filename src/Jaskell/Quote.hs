@@ -9,6 +9,7 @@ module Jaskell.Quote
 import Data.Void (Void)
 import Control.Monad (void)
 import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
+import Control.Category ((>>>))
 
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
@@ -203,7 +204,7 @@ quote input = do
     Right prog -> convertProgram prog
 
 comp :: [ExpQ] -> ExpQ
-comp = foldr1 (\f g -> infixE (Just f) (varE '(.)) (Just g))
+comp = foldr1 (\f g -> infixE (Just f) (varE '(>>>)) (Just g))
 
 convertName :: Name -> ExpQ
 convertName = \case
@@ -243,7 +244,7 @@ convertAtom = \case
   
   Quote x -> appE (varE 'Jaskell.push) (convertExpr x)
   
-  Lit lit -> convertLiteral lit
+  Lit lit -> appE (varE 'Jaskell.push) (convertLiteral lit)
 
 convertExpr :: Expr -> ExpQ
 convertExpr (Expr xs) = comp (map convertAtom xs)
