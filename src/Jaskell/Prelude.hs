@@ -190,29 +190,30 @@ linrec = proc ((((s, p), f), g), h) -> do
       s' <- g -<< s
       u <- linrec -< ((((s', p), f), g), h)
       h -<< u
-
+      
 -- private
-alterSim :: ArrowApply arr => arr (s, a) (s, b) -> arr (s, [a]) (s, ([a], b))
-alterSim f = proc (s, x:xs) -> do
+alterSim :: ArrowApply arr => arr (s, a) (s, b) -> arr (s, ([c], a)) (s, ([c], b))
+alterSim f = proc (s, (zs, x)) -> do
   (s', y) <- f -<< (s, x)
-  returnA -< (s', (xs, y))
+  returnA -< (s', (zs, y))
 
 -- private
-growSim :: ArrowApply arr => arr (s, a) ((s, a), a) -> arr (s, [a]) (s, [a])
-growSim g = proc (s, x:xs) -> do
-  ((s', x1), x2) <- g -<< (s, x)
-  returnA -< (s', x2:x1:xs)
+growSim :: ArrowApply arr => arr (s, a) ((s, c), a) -> arr (s, ([c], a)) (s, ([c], a))
+growSim g = proc (s, (zs, x)) -> do
+  ((s', z), x') <- g -<< (s, x)
+  returnA -< (s', (z:zs, x'))
 
 -- private
-shrinkSim :: ArrowApply arr => arr ((s, a), b) (s, b) -> arr (s, ([a], b)) (s, ([a], b))
-shrinkSim h = proc (s, (x:xs, y)) -> do
-  (s', y') <- h -<< ((s, x), y)
-  returnA -< (s', (xs, y'))
+shrinkSim :: ArrowApply arr => arr ((s, c), b) (s, b) -> arr (s, ([c], b)) (s, ([c], b))
+shrinkSim h = proc (s, (z:zs, y)) -> do
+  (s', y') <- h -<< ((s, z), y)
+  returnA -< (s', (zs, y'))
 
-linrec' :: (ArrowApply arr, ArrowChoice arr) => arr (((((s, a), arr (s, a) (t, Bool)), arr (s, a) (s, b)), arr (s, a) ((s, a), a)), arr ((s, a), b) (s, b)) (s, b)
+linrec' :: (ArrowApply arr, ArrowChoice arr) => arr (((((s, a), arr (s, a) (t, Bool)), arr (s, a) (s, b)), arr (s, a) ((s, c), a)), arr ((s, c), b) (s, b)) (s, b)
 linrec' = proc (((((s, x), p), f), g), h) -> do
-  let p' = Bifunctor.second head ^>> p
-  (s', (_, y)) <- linrec -< (((((s, [x]), p'), alterSim f), growSim g), shrinkSim h)
+  let seed = ([], x)
+  let p' = Bifunctor.second snd ^>> p
+  (s', ([], y)) <- linrec -< (((((s, seed), p'), alterSim f), growSim g), shrinkSim h)
   returnA -< (s', y)
 
 binrec :: Arrow arr => arr (((((s, a), (s, a) -> (t, Bool)), (s, a) -> (u, b)), (s, a) -> ((s, a), a)), ((s, b), b) -> (u, b)) (u, b)
