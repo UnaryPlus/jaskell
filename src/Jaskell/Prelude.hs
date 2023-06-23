@@ -216,14 +216,16 @@ linrec' = proc (((((s, x), p), f), g), h) -> do
   (s', ([], y)) <- linrec -< (((((s, seed), p'), alterSim f), growSim g), shrinkSim h)
   returnA -< (s', y)
 
-binrec :: Arrow arr => arr (((((s, a), (s, a) -> (t, Bool)), (s, a) -> (u, b)), (s, a) -> ((s, a), a)), ((s, b), b) -> (u, b)) (u, b)
-binrec = arr \((((s, p), f), g), h) ->
-  if snd (p s) then f s
-  else let 
-    ((s', x), y) = g s
-    (_, x') = binrec (((((s', x), p), f), g), h)
-    (_, y') = binrec (((((s', y), p), f), g), h)
-    in h ((s', x'), y')
+binrec :: (ArrowApply arr, ArrowChoice arr) => arr (((((s, a), arr (s, a) (t, Bool)), arr (s, a) (u, b)), arr (s, a) ((s, a), a)), arr ((s, b), b) (u, b)) (u, b)
+binrec = proc ((((s, p), f), g), h) -> do
+  (_, b) <- p -<< s
+  if b
+    then f -<< s
+    else do
+      ((s', x), y) <- g -<< s
+      (_, x') <- binrec -< (((((s', x), p), f), g), h)
+      (_, y') <- binrec -< (((((s', y), p), f), g), h)
+      h -<< ((s', x'), y')
 
 ----------
 -- genrec?
