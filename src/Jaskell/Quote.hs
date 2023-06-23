@@ -171,6 +171,7 @@ parseAtom = M.choice
   , Op <$> parseOp <* spaces
   , parseList 
   , parseTup 
+  -- TODO: allow empty quotations
   , Quote <$ symbol '{' <*> parseExpr <* symbol '}'
   , Lit <$> parseLiteral <* spaces
   ]
@@ -184,6 +185,7 @@ parseDef = (,) <$ M.chunk "DEF" <* spaces <*> lowerName <* spaces <* symbol '=' 
 parseProgram :: Parser Program
 parseProgram = Program <$> M.many parseDef <*> parseExpr
 
+-- TODO: fix setLoc
 setLoc :: (Int, Int) -> Parser ()
 setLoc (line, col) =
   M.updateParserState $ \state ->
