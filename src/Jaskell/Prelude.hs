@@ -6,14 +6,14 @@ module Jaskell.Prelude
   , pop, dup, swap, popd , pop2 , dupd, dup2, swapd, rollup, rolldown
   , choice, select
   , pair, unpair
-  , cons, swons
+  , cons, swons, uncons
   , conjoin, disjoin
   , i, comp
   , consQ, swonsQ
   , nullary, dip, dipd, dipdd
   , app1, app2, app3, cleave
   , ifte, whiledo
-  , tailrec, linrec, binrec, natrec, listrec
+  , tailrec, linrec, linrec', binrec, natrec, listrec
   , cond, CLROption(..), condlinrec
   , branch, times, infra
   , step, step2, map, mapS, filter, filterS, split, splitS
@@ -25,6 +25,7 @@ import Prelude hiding (map, filter, any, all, zipWith)
 import Data.List (partition)
 import Control.Applicative (liftA2)
 import Control.Arrow (Arrow, ArrowApply, ArrowChoice, arr, (>>>), (>>^), (^>>), (&&&), returnA, app)
+import qualified Data.Bifunctor as Bifunctor
 
 stack :: Arrow arr => arr s (s, s)
 stack = arr \s -> (s, s)
@@ -84,6 +85,12 @@ cons = arr \((s, x), xs) -> (s, x : xs)
 
 swons :: Arrow arr => arr ((s, [a]), a) (s, [a])
 swons = arr \((s, xs), x) -> (s, x : xs)
+
+uncons :: Arrow arr => arr (s, [a]) ((s, a), [a])
+uncons = arr \(s, xs) -> 
+  case xs of
+    [] -> error "Jaskell.Prelude.uncons: empty list"
+    x:xt -> ((s, x), xt)
 
 conjoin :: (Arrow arr, Arrow arr') => arr ((s, arr' t (u1, Bool)), arr' t (u2, Bool)) (s, arr' t (t, Bool))
 conjoin = arr \((s, p1), p2) -> 
@@ -183,6 +190,30 @@ linrec = proc ((((s, p), f), g), h) -> do
       s' <- g -<< s
       u <- linrec -< ((((s', p), f), g), h)
       h -<< u
+
+-- private
+alterSim :: ArrowApply arr => arr (s, a) (s, b) -> arr (s, [a]) (s, ([a], b))
+alterSim f = proc (s, x:xs) -> do
+  (s', y) <- f -<< (s, x)
+  returnA -< (s', (xs, y))
+
+-- private
+growSim :: ArrowApply arr => arr (s, a) ((s, a), a) -> arr (s, [a]) (s, [a])
+growSim g = proc (s, x:xs) -> do
+  ((s', x1), x2) <- g -<< (s, x)
+  returnA -< (s', x2:x1:xs)
+
+-- private
+shrinkSim :: ArrowApply arr => arr ((s, a), b) (s, b) -> arr (s, ([a], b)) (s, ([a], b))
+shrinkSim h = proc (s, (x:xs, y)) -> do
+  (s', y') <- h -<< ((s, x), y)
+  returnA -< (s', (xs, y'))
+
+linrec' :: (ArrowApply arr, ArrowChoice arr) => arr (((((s, a), arr (s, a) (t, Bool)), arr (s, a) (s, b)), arr (s, a) ((s, a), a)), arr ((s, a), b) (s, b)) (s, b)
+linrec' = proc (((((s, x), p), f), g), h) -> do
+  let p' = Bifunctor.second head ^>> p
+  (s', (_, y)) <- linrec -< (((((s, [x]), p'), alterSim f), growSim g), shrinkSim h)
+  returnA -< (s', y)
 
 binrec :: Arrow arr => arr (((((s, a), (s, a) -> (t, Bool)), (s, a) -> (u, b)), (s, a) -> ((s, a), a)), ((s, b), b) -> (u, b)) (u, b)
 binrec = arr \((((s, p), f), g), h) ->
@@ -316,12 +347,25 @@ splitS = proc ((s, xs), f) ->
       ((s'', trues), falses) <- splitS -< ((s', xt), f)
       returnA -< if b then ((s'', x:trues), falses) else ((s'', trues), x:falses) 
 
--- TODO: change types of any and all?
-any :: Arrow arr => arr ((s, [a]), (s, a) -> (t, Bool)) (s, Bool)
-any = arr \((s, xs), f) -> (s, Prelude.any (\x -> snd (f (s, x))) xs)
+any :: (ArrowApply arr, ArrowChoice arr) => arr ((s, [a]), arr (s, a) (t, Bool)) (s, Bool)
+any = proc ((s, xs), f) -> 
+  case xs of
+    [] -> returnA -< (s, False)
+    x:xt -> do
+      (_, b) <- f -<< (s, x)
+      if b 
+        then returnA -< (s, True) 
+        else any -< ((s, xt), f)
 
-all :: Arrow arr => arr ((s, [a]), (s, a) -> (t, Bool)) (s, Bool)
-all = arr \((s, xs), f) -> (s, Prelude.all (\x -> snd (f (s, x))) xs)
+all :: (ArrowApply arr, ArrowChoice arr) => arr ((s, [a]), arr (s, a) (t, Bool)) (s, Bool)
+all = proc ((s, xs), f) ->
+  case xs of
+    [] -> returnA -< (s, True)
+    x:xt -> do
+      (_, b) <- f -<< (s, x)
+      if b
+        then all -< ((s, xt), f)
+        else returnA -< (s, False)
 
 zipwith :: Arrow arr => arr (((s, [a]), [b]), ((s, a), b) -> (t, c)) (s, [c])
 zipwith = arr \(((s, xs), ys), f) -> (s, Prelude.zipWith (\x y -> snd (f ((s, x), y))) xs ys)

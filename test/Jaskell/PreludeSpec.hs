@@ -2,6 +2,9 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Jaskell.PreludeSpec (spec) where
 
+import qualified Prelude
+import Prelude hiding (map, filter, any, all, zipWith)
+
 import Test.Hspec (Spec, it, describe, shouldBe)
 import Jaskell.Prelude
 import Jaskell.Quote (jsl)
@@ -160,11 +163,24 @@ spec = do
     it "works" do
       run [jsl| 10 { 0 >= } { 2 - } whiledo |] `shouldBe` ((), -2 :: Int)
   
-  {-
   describe "tailrec" do
-    it "works" do
-      run [jsl| |] `shouldBe`
-  -}
+    it "calculates fibonacci numbers" do
+      let fib = [jsl| 1 0 { pop2 0 <= } { { pop2 } dip } { { 1 - } dipd swap dupd + } tailrec |] 
+      let fibF n = snd (runOn ((), n :: Int) fib) :: Int
+      Prelude.map fibF [0..6] `shouldBe` [0,1,1,2,3,5,8]
+  
+  describe "linrec" do
+    return ()
+
+  describe "linrec'" do
+    it "calculates factorials" do
+      let fac = [jsl| { 0 <= } { pop 1 } { dup 1 - } { * } linrec' |]
+      let facF n = snd (runOn ((), n :: Int) fac) :: Int
+      Prelude.map facF [0..6] `shouldBe` [1,1,2,6,24,120,720]
+     
+
+  
+  
 
 {-
   ( stack, unstack, newstack
