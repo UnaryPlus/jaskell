@@ -337,7 +337,7 @@ filterS = proc ((s, xs), f) ->
 split :: Arrow arr => arr ((s, [a]), (s, a) -> (t, Bool)) ((s, [a]), [a])
 split = arr \((s, xs), f) ->
   let (trues, falses) = partition (\x -> snd (f (s, x))) xs
-  in ((s, trues), falses)
+  in ((s, falses), trues)
 
 splitS :: (ArrowApply arr, ArrowChoice arr) => arr ((s, [a]), arr (s, a) (s, Bool)) ((s, [a]), [a])
 splitS = proc ((s, xs), f) ->
@@ -345,8 +345,8 @@ splitS = proc ((s, xs), f) ->
     [] -> returnA -< ((s, []), [])
     x:xt -> do
       (s', b) <- f -<< (s, x)
-      ((s'', trues), falses) <- splitS -< ((s', xt), f)
-      returnA -< if b then ((s'', x:trues), falses) else ((s'', trues), x:falses) 
+      ((s'', falses), trues) <- splitS -< ((s', xt), f)
+      returnA -< if b then ((s'', falses), x:trues) else ((s'', x:falses), trues) 
 
 any :: (ArrowApply arr, ArrowChoice arr) => arr ((s, [a]), arr (s, a) (t, Bool)) (s, Bool)
 any = proc ((s, xs), f) -> 
