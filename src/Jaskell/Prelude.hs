@@ -190,31 +190,16 @@ linrec = proc ((((s, p), f), g), h) -> do
       s' <- g -<< s
       u <- linrec -< ((((s', p), f), g), h)
       h -<< u
-      
--- private
-alterSim :: ArrowApply arr => arr (s, a) (s, b) -> arr (s, ([c], a)) (s, ([c], b))
-alterSim f = proc (s, (zs, x)) -> do
-  (s', y) <- f -<< (s, x)
-  returnA -< (s', (zs, y))
 
--- private
-growSim :: ArrowApply arr => arr (s, a) ((s, c), a) -> arr (s, ([c], a)) (s, ([c], a))
-growSim g = proc (s, (zs, x)) -> do
-  ((s', z), x') <- g -<< (s, x)
-  returnA -< (s', (z:zs, x'))
-
--- private
-shrinkSim :: ArrowApply arr => arr ((s, c), b) (s, b) -> arr (s, ([c], b)) (s, ([c], b))
-shrinkSim h = proc (s, (z:zs, y)) -> do
-  (s', y') <- h -<< ((s, z), y)
-  returnA -< (s', (zs, y'))
-
-linrec' :: (ArrowApply arr, ArrowChoice arr) => arr (((((s, a), arr (s, a) (t, Bool)), arr (s, a) (s, b)), arr (s, a) ((s, c), a)), arr ((s, c), b) (s, b)) (s, b)
-linrec' = proc (((((s, x), p), f), g), h) -> do
-  let seed = ([], x)
-  let p' = Bifunctor.second snd ^>> p
-  (s', ([], y)) <- linrec -< (((((s, seed), p'), alterSim f), growSim g), shrinkSim h)
-  returnA -< (s', y)
+linrec' :: (ArrowApply arr, ArrowChoice arr) => arr ((((s, arr s (t, Bool)), arr s u), arr s (s, c)), arr (u, c) u) u
+linrec' = proc ((((s, p), f), g), h) -> do
+  (_, stop) <- p -<< s
+  if stop
+    then f -<< s
+    else do
+      (s', x) <- g -<< s
+      u <- linrec' -< ((((s', p), f), g), h)
+      h -<< (u, x)
 
 binrec :: (ArrowApply arr, ArrowChoice arr) => arr (((((s, a), arr (s, a) (t, Bool)), arr (s, a) (u, b)), arr (s, a) ((s, a), a)), arr ((s, b), b) (u, b)) (u, b)
 binrec = proc ((((s, p), f), g), h) -> do
