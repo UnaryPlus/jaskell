@@ -97,6 +97,9 @@ spec = do
       runOn ((), 3) test `shouldBe` (((), 3 :: Int), False)
       runOn ((), 4) test `shouldBe` (((), 4 :: Int), True)
       runOn ((), 5) test `shouldBe` (((), 5 :: Int), False)
+    
+    it "short circuits" do
+      run [jsl| 0 { 1 > } { undefined } conjoin i |] `shouldBe` (((), 0 :: Int), False)
   
   describe "disjoin" do
     it "works" do
@@ -104,6 +107,9 @@ spec = do
       runOn ((), 7) test `shouldBe` (((), 7 :: Int), True)
       runOn ((), 8) test `shouldBe` (((), 8 :: Int), False)
       runOn ((), 9) test `shouldBe` (((), 9 :: Int), True)
+    
+    it "short circuits" do
+      run [jsl| 0 { 1 < } { undefined } conjoin i |] `shouldBe` (((), 0 :: Int), True)
   
   describe "i" do
     it "works" do
@@ -175,12 +181,61 @@ spec = do
   describe "linrec'" do
     it "calculates factorials" do
       let fac = [jsl| { 0 <= } { pop 1 } { dup 1 - } { * } linrec' |]
-      let facF n = snd (runOn ((), n :: Int) fac) :: Int
+      let facF n = snd (runOn ((), n) fac) :: Int
       Prelude.map facF [0..6] `shouldBe` [1,1,2,6,24,120,720]
-     
+  
+  describe "binrec" do
+    it "can implement quicksort" do
+      let qsort = [jsl|
+            DEF small = { $null } { uncons $null } disjoin ;
+            small { id } { uncons { > } split { cons } dip }
+            { ++ } binrec
+           |]
+      let qsortF xs = snd (runOn ((), xs) qsort) :: [Int]
+      qsortF [] `shouldBe` []
+      qsortF [5] `shouldBe` [5]
+      qsortF [3,5,1,6,4,2] `shouldBe` [1,2,3,4,5,6]
 
+  describe "natrec" do
+    it "calculates factorials" do
+      let fac = [jsl| { 1 } { * } natrec |]  
+      let facF n = snd (runOn ((), n) fac) :: Int
+      Prelude.map facF [0..6] `shouldBe` [1,1,2,6,24,120,720]
   
+  describe "listrec" do
+    it "reverses lists" do
+      let rev = [jsl| { [] } { swap [] cons ++ } listrec |]
+      let revF xs = snd (runOn ((), xs) rev)
+      revF [] `shouldBe` ([] :: [()])
+      revF "abc" `shouldBe` "cba"
   
+  describe "cond" do
+    it "works" do
+      let test = [jsl| [ ({ 1 < }, { dup * }), ({ 1 > }, { dup * $negate }) ] { $negate } cond |]
+      runOn ((), -2) test `shouldBe` ((), 4 :: Double)
+      runOn ((), 3) test `shouldBe` ((), -9)
+      runOn ((), 0.5) test `shouldBe` ((), -0.5)
+  
+  describe "condlinrec" do
+    return ()
+  
+  describe "branch" do
+    it "converts bools to ints" do
+      let int = [jsl| { 1 } { 0 } branch |]
+      let intF b = snd (runOn ((), b) int) :: Int
+      intF True `shouldBe` 1
+      intF False `shouldBe` 0
+  
+  describe "times" do
+    it "computes powers of two" do
+      let pow = [jsl| 1 swap { 2 * } times |]
+      let powF n = snd (runOn ((), n) pow) :: Int
+      powF 0 `shouldBe` 1
+      powF 5 `shouldBe` 32
+  
+  describe "infra" do
+    it "works" do
+      run [jsl| 'a' () { 5 3 7 + } infra unstack |] `shouldBe` (((), 5 :: Int), 10 :: Int)
 
 {-
   ( stack, unstack, newstack
