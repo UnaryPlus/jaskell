@@ -255,5 +255,8 @@ convertDef :: (String, Expr) -> DecQ
 convertDef (n, x) = funD (TH.mkName n) [ clause [] (normalB (convertExpr x)) [] ]
 
 convertProgram :: Program -> ExpQ
-convertProgram (Program defs x) = letE (map convertDef defs) (convertExpr x)
+convertProgram (Program defs x) = 
+  if null defs 
+    then convertExpr x
+    else letE (map convertDef defs) (convertExpr x)
 
