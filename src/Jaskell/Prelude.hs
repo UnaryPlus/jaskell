@@ -25,7 +25,6 @@ import Prelude hiding (map, filter, any, all, zipWith)
 import Data.List (partition)
 import Control.Applicative (liftA2)
 import Control.Arrow (Arrow, ArrowApply, ArrowChoice, arr, (>>>), (>>^), (^>>), (&&&), returnA, app)
-import qualified Data.Bifunctor as Bifunctor
 
 stack :: Arrow arr => arr s (s, s)
 stack = arr \s -> (s, s)
@@ -219,8 +218,8 @@ binrec' = proc ((((s, p), f), g), h) -> do
     then f -<< s
     else do
       (((s', x), y), z) <- g -<< s
-      (_, x') <- binrec -< (((((s', x), p), f), g), h)
-      (_, y') <- binrec -< (((((s', y), p), f), g), h)
+      (_, x') <- binrec' -< (((((s', x), p), f), g), h)
+      (_, y') <- binrec' -< (((((s', y), p), f), g), h)
       h -<< (((s', x'), y'), z)
 
 ----------
