@@ -5,16 +5,16 @@ module Jaskell
   , run, runOn, runK, runKOn
   ) where
 
-import Control.Arrow (Kleisli(Kleisli))
+import Control.Arrow (Arrow, arr, Kleisli(Kleisli))
 
-push :: a -> s -> (s, a)
-push x s = (s, x)
+push :: Arrow arr => a -> arr s (s, a)
+push x = arr (, x)
 
-liftS :: (a -> b) -> (s, a) -> (s, b)
-liftS f (s, x) = (s, f x)
+liftS :: Arrow arr => (a -> b) -> arr (s, a) (s, b)
+liftS f = arr (fmap f)
 
-liftS2 :: (a -> b -> c) -> ((s, a), b) -> (s, c)
-liftS2 f ((s, x), y) = (s, f x y)
+liftS2 :: Arrow arr => (a -> b -> c) -> arr ((s, a), b) (s, c)
+liftS2 f = arr \((s, x), y) -> (s, f x y)
 
 pushM :: Functor m => m a -> Kleisli m s (s, a)
 pushM mx = Kleisli \s -> fmap (s, ) mx
