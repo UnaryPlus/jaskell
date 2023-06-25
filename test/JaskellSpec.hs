@@ -3,7 +3,11 @@ module JaskellSpec (spec) where
 
 import Test.Hspec (Spec, it, describe, shouldBe)
 import Control.Category ((>>>))
-import Jaskell
+import System.Directory (removeFile)
+import Jaskell ( liftS, liftS2, liftSM, popM, push, pushM, runK )
+
+testPutStr :: String -> IO ()
+testPutStr = writeFile "/dev/tty"
 
 spec :: Spec
 spec = do
@@ -21,11 +25,20 @@ spec = do
   
   describe "Jaskell.pushM" do
     it "can read input" do
+      testPutStr "Type 'hello':\n"
       s <- runK (pushM getLine)
       s `shouldBe` ((), "hello")
-
-{-
-  ( push, liftS, liftS2, pushM, popM, liftSM
-  , run, runOn, runK, runKOn
-  )
--}
+  
+  describe "Jaskell.popM" do
+    it "can output text" do
+      runK (push "foo" >>> push "\n" >>> liftS2 (++) >>> popM testPutStr)
+      testPutStr "Was the word 'foo' just printed? (y/n) "
+      res <- getLine
+      res `shouldBe` "y"
+  
+  describe "Jaskell.liftSM" do
+    it "can read from files" do
+      writeFile "tmp-input.txt" "lorem ipsum"
+      s <- runK (push "tmp-input.txt" >>> liftSM readFile)
+      s `shouldBe` ((), "lorem ipsum")
+      removeFile "tmp-input.txt"

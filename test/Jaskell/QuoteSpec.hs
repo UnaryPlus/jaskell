@@ -1,9 +1,13 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE QuasiQuotes #-}
 module Jaskell.QuoteSpec (spec) where
 
 import Test.Hspec (Spec, it, describe, shouldBe)
 import Text.Megaparsec (parse)
+import Jaskell (run)
 import Jaskell.Quote
+
+import qualified Data.List
 
 spec :: Spec
 spec = do
@@ -62,6 +66,11 @@ spec = do
       parse parseProgram "" "4 3 + 'a' #replicate " `shouldBe` Right (Program [] (Expr [Lit (Integer 4), Lit (Integer 3), Op "+", Lit (Char 'a'), Name LiftS2 (Fun [] "replicate")]))
     it "parses definitions" do
       parse parseProgram "" "DEF sq = dup * ; DEF inc = -1 - ; 4 sq inc" `shouldBe` Right (Program [("sq", Expr [Name Bare (Fun [] "dup"), Op "*"]), ("inc", Expr [Lit (Integer (-1)), Op "-"])] (Expr [Lit (Integer 4), Name Bare (Fun [] "sq"), Name Bare (Fun [] "inc")])) 
-    
+  
+  describe "Jaskell.quote.jsl" do
+    it "converts qualified module names properly" do
+      run [jsl| "a" $Data.List.head |] `shouldBe` ((), 'a')
+    -- TODO: add more tests?
+
 
 

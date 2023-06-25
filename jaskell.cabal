@@ -48,7 +48,7 @@ test-suite test
     Jaskell.QuoteSpec
   
   build-depends: 
-    base, hspec, megaparsec, jaskell
+    base, hspec, megaparsec, directory, jaskell
   
   build-tool-depends:
     hspec-discover:hspec-discover
