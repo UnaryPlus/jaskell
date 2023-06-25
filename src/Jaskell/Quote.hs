@@ -171,10 +171,11 @@ parseAtom = M.choice
   , Op <$> parseOp <* spaces
   , parseList 
   , parseTup 
-  -- TODO: allow empty quotations
-  , Quote <$ symbol '{' <*> parseExpr <* symbol '}'
+  , Quote <$ symbol '{' <*> optionalExpr <* symbol '}'
   , Lit <$> parseLiteral <* spaces
   ]
+  where
+    optionalExpr = M.choice [ parseExpr, return (Expr []) ]
 
 parseExpr :: Parser Expr
 parseExpr = Expr <$> M.some parseAtom
