@@ -6,10 +6,11 @@ import qualified Prelude
 import Prelude hiding (map, filter, any, all, zipWith)
 
 import Test.Hspec (Spec, it, describe, shouldBe)
-import Jaskell.Prelude
 import Jaskell.Quote (jsl)
 import Jaskell (run, runOn)
+import Jaskell.Prelude
 
+-- TODO: change/remove test descriptions
 spec :: Spec
 spec = do
   describe "Jaskell.Prelude.stack" do
@@ -303,5 +304,5 @@ spec = do
   describe "Jaskell.Prelude.zipwithS" do
     it "works" do
       run [jsl| 0 [0,6,5] [2,-3,1,0] { + dupd + { 2 + } dip } zipwithS |]
-        `shouldBe` (((), 3), [2,5,10 :: Int])
+        `shouldBe` (((), 6), [2,5,10 :: Int])
   
