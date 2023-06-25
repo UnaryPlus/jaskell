@@ -13,7 +13,7 @@ module Jaskell.Prelude
   , nullary, dip, dipd, dipdd
   , app1, app2, app3, cleave
   , ifte, whiledo
-  , tailrec, linrec, linrec', binrec, natrec, listrec
+  , tailrec, linrec, linrec', binrec, binrec', natrec, listrec
   , cond, CLROption(..), condlinrec
   , branch, times, infra
   , step, step2, map, mapS, filter, filterS, split, splitS
@@ -203,14 +203,25 @@ linrec' = proc ((((s, p), f), g), h) -> do
 
 binrec :: (ArrowApply arr, ArrowChoice arr) => arr (((((s, a), arr (s, a) (t, Bool)), arr (s, a) (u, b)), arr (s, a) ((s, a), a)), arr ((s, b), b) (u, b)) (u, b)
 binrec = proc ((((s, p), f), g), h) -> do
-  (_, b) <- p -<< s
-  if b
+  (_, stop) <- p -<< s
+  if stop
     then f -<< s
     else do
       ((s', x), y) <- g -<< s
       (_, x') <- binrec -< (((((s', x), p), f), g), h)
       (_, y') <- binrec -< (((((s', y), p), f), g), h)
       h -<< ((s', x'), y')
+
+binrec' :: (ArrowApply arr, ArrowChoice arr) => arr (((((s, a), arr (s, a) (t, Bool)), arr (s, a) (u, b)), arr (s, a) (((s, a), a), c)), arr (((s, b), b), c) (u, b)) (u, b)
+binrec' = proc ((((s, p), f), g), h) -> do
+  (_, stop) <- p -<< s
+  if stop
+    then f -<< s
+    else do
+      (((s', x), y), z) <- g -<< s
+      (_, x') <- binrec -< (((((s', x), p), f), g), h)
+      (_, y') <- binrec -< (((((s', y), p), f), g), h)
+      h -<< (((s', x'), y'), z)
 
 ----------
 -- genrec?
