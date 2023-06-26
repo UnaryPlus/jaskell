@@ -171,30 +171,31 @@ parseDef = (,) <$ M.chunk "DEF" <* spaces <*> lowerName <* spaces <* symbol '=' 
 parseProgram :: Parser Program
 parseProgram = Program <$> M.many parseDef <*> parseExpr
 
--- TODO: fix setLoc
-setLoc :: (Int, Int) -> Parser ()
-setLoc (line, col) =
-  M.updateParserState $ \state ->
-    let posState = M.statePosState state
-        sourcePos = M.pstateSourcePos posState
-        sourcePos' = sourcePos { M.sourceLine = M.mkPos line, M.sourceColumn = M.mkPos col }
-        posState' = posState { M.pstateSourcePos = sourcePos' }
-    in state { M.statePosState = posState' }
+initialState :: s -> M.SourcePos -> M.State s Void 
+initialState input pos = 
+  M.State
+    { M.stateInput = input
+    , M.stateOffset = 0
+    , M.statePosState = 
+        M.PosState
+          { M.pstateInput = input
+          , M.pstateOffset = 0
+          , M.pstateSourcePos = pos
+          , M.pstateTabWidth = M.defaultTabWidth
+          , M.pstateLinePrefix = ""
+          }
+      , M.stateParseErrors = []
+    }
 
 quote :: String -> ExpQ
 quote input = do
   loc <- TH.location
   let file = TH.loc_filename loc
       (line, col) = TH.loc_start loc
+      state = initialState input (M.SourcePos file (M.mkPos line) (M.mkPos col)) 
+      parse = spaces >> (parseProgram <* M.eof)
 
-      parse = do
-        setLoc (line, col)
-        spaces
-        prog <- parseProgram 
-        M.eof
-        return prog
-
-  case M.runParser parse file input of 
+  case snd (M.runParser' parse state) of 
     Left errors -> fail (M.errorBundlePretty errors)
     Right prog -> convertProgram prog
 
