@@ -10,8 +10,6 @@ import Jaskell.Quote (jsl)
 import Jaskell (run, runOn)
 import Jaskell.Prelude
 
--- TODO: ensure all functions mentioned in the right order
-
 spec :: Spec
 spec = do
   describe "Jaskell.Prelude.stack" do
@@ -173,6 +171,24 @@ spec = do
       runOn ((), 3) test `shouldBe` ((), 3 :: Int)
       runOn ((), 6) test `shouldBe` ((), 1 :: Int)
   
+  describe "Jaskell.Prelude.branch" do
+    it "converts bools to ints" do
+      let int = [jsl| { 1 } { 0 } branch |]
+      let intF b = snd (runOn ((), b) int) :: Int
+      intF True `shouldBe` 1
+      intF False `shouldBe` 0
+  
+  describe "Jaskell.Prelude.cond" do
+    it "works" do
+      let test = [jsl| [ ({ -1 < }, { dup * }), ({ 1 > }, { dup * $negate }) ] { $negate } cond |]
+      runOn ((), -2) test `shouldBe` ((), 4 :: Double)
+      runOn ((), 3) test `shouldBe` ((), -9)
+      runOn ((), 0.5) test `shouldBe` ((), -0.5)
+  
+  describe "Jaskell.Prelude.infra" do
+    it "works" do
+      run [jsl| 'a' () { 5 3 7 + } infra unstack |] `shouldBe` (((), 5 :: Int), 10 :: Int)
+  
   describe "Jaskell.Prelude.whiledo" do
     it "works" do
       run [jsl| 10 { 0 >= } { 2 - } whiledo |] `shouldBe` ((), -2 :: Int)
@@ -220,22 +236,8 @@ spec = do
       revF [] `shouldBe` ([] :: [()])
       revF "abc" `shouldBe` "cba"
   
-  describe "Jaskell.Prelude.cond" do
-    it "works" do
-      let test = [jsl| [ ({ -1 < }, { dup * }), ({ 1 > }, { dup * $negate }) ] { $negate } cond |]
-      runOn ((), -2) test `shouldBe` ((), 4 :: Double)
-      runOn ((), 3) test `shouldBe` ((), -9)
-      runOn ((), 0.5) test `shouldBe` ((), -0.5)
-  
   describe "Jaskell.Prelude.condlinrec" do
     return ()
-  
-  describe "Jaskell.Prelude.branch" do
-    it "converts bools to ints" do
-      let int = [jsl| { 1 } { 0 } branch |]
-      let intF b = snd (runOn ((), b) int) :: Int
-      intF True `shouldBe` 1
-      intF False `shouldBe` 0
   
   describe "Jaskell.Prelude.times" do
     it "computes powers of two" do
@@ -243,10 +245,6 @@ spec = do
       let powF n = snd (runOn ((), n) pow) :: Int
       powF 0 `shouldBe` 1
       powF 5 `shouldBe` 32
-    
-  describe "Jaskell.Prelude.infra" do
-    it "works" do
-      run [jsl| 'a' () { 5 3 7 + } infra unstack |] `shouldBe` (((), 5 :: Int), 10 :: Int)
     
   describe "Jaskell.Prelude.step" do
     it "reverses lists" do

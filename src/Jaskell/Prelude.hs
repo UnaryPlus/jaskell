@@ -1,3 +1,14 @@
+{-|
+Module     : Jaskell.Prelude
+Copyright  : (c) Owen Bechtel, 2023
+License    : MIT
+Maintainer : ombspring@gmail.com
+Stability  : experimental
+
+A standard library for Jaskell. The names of most functions in this module come from the Joy programming 
+language (see [here](https://www.kevinalbrecht.com/code/joy-mirror/j03atm.html) for a list of Joy commands).
+-}
+
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE Arrows #-}
@@ -28,20 +39,16 @@ module Jaskell.Prelude
   , any, all, zipwith, zipwithS
   ) where
 
--- TODO: add module description
-
 import qualified Prelude
 import Prelude hiding (map, filter, any, all, zipWith)
 import Data.List (partition)
 import Control.Applicative (liftA2)
 import Control.Arrow (Arrow, ArrowApply, ArrowChoice, arr, (>>>), (>>^), (^>>), (&&&), returnA, app)
 
--- TODO: reorder function definitions
-
 stack :: Arrow arr => arr s (s, s)
 stack = arr \s -> (s, s)
 
-unstack :: Arrow arr => arr (s, a) a
+unstack :: Arrow arr => arr (s, t) t
 unstack = arr snd
 
 newstack :: Arrow arr => arr a ()
@@ -179,7 +186,31 @@ ifte :: ArrowApply arr => arr (((s, arr s (t, Bool)), arr s u), arr s u) u
 ifte = proc (((s, p), f), g) -> do
   (_, b) <- p -<< s
   (if b then f else g) -<< s
-  
+
+branch :: ArrowApply arr => arr (((s, Bool), arr s t), arr s t) t
+branch = proc (((s, b), f), g) -> (if b then f else g) -<< s
+
+-- PRIVATE
+chooseA :: (ArrowApply arr, ArrowChoice arr) => arr (s, [(arr s (t, Bool), a)], a) a
+chooseA = proc (s, ps, dft) -> 
+  case ps of
+    [] -> returnA -< dft
+    (p, x):pt -> do
+      (_, b) <- p -<< s
+      if b 
+        then returnA -< x 
+        else chooseA -< (s, pt, dft) 
+
+cond :: (ArrowApply arr, ArrowChoice arr) => arr ((s, [(arr s (t, Bool), arr s u)]), arr s u) u
+cond = proc ((s, ps), dft) -> do
+  f <- chooseA -< (s, ps, dft)
+  f -<< s
+
+infra :: ArrowApply arr => arr ((s, t), arr t u) (s, u)
+infra = proc ((s, x), f) -> do
+  x' <- f -<< x
+  returnA -< (s, x')
+
 whiledo :: (ArrowApply arr, ArrowChoice arr) => arr ((s, arr s (t, Bool)), arr s s) s
 whiledo = proc ((s, p), f) -> do
   (_, b) <- p -<< s
@@ -260,22 +291,6 @@ listrec = proc (((s, xs), f), g) ->
       (_, res) <- listrec -< (((s, xt), f), g)
       g -<< ((s, x), res)
 
--- private
-chooseA :: (ArrowApply arr, ArrowChoice arr) => arr (s, [(arr s (t, Bool), a)], a) a
-chooseA = proc (s, ps, dft) -> 
-  case ps of
-    [] -> returnA -< dft
-    (p, x):pt -> do
-      (_, b) <- p -<< s
-      if b 
-        then returnA -< x 
-        else chooseA -< (s, pt, dft) 
-
-cond :: (ArrowApply arr, ArrowChoice arr) => arr ((s, [(arr s (t, Bool), arr s u)]), arr s u) u
-cond = proc ((s, ps), dft) -> do
-  f <- chooseA -< (s, ps, dft)
-  f -<< s
-
 data CLROption arr s u 
   = Stop (arr s u)
   | Recurse (arr s s) (arr u u)
@@ -294,9 +309,6 @@ condlinrec = proc ((s, ps), dft) -> do
 -- construct: not well typed?
 -----------------------------
 
-branch :: ArrowApply arr => arr (((s, Bool), arr s t), arr s t) t
-branch = proc (((s, b), f), g) -> (if b then f else g) -<< s
-
 times :: (ArrowApply arr, ArrowChoice arr) => arr ((s, Int), arr s s) s
 times = proc ((s, n), f) -> 
   if n <= 0
@@ -304,11 +316,6 @@ times = proc ((s, n), f) ->
     else do
       s' <- f -<< s
       times -< ((s', n - 1), f)
-
-infra :: ArrowApply arr => arr ((s, t), arr t u) (s, u)
-infra = proc ((s, x), f) -> do
-  x' <- f -<< x
-  returnA -< (s, x')
 
 step :: (ArrowApply arr, ArrowChoice arr) => arr ((s, [a]), arr (s, a) s) s
 step = proc ((s, xs), f) ->
