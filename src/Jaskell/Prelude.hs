@@ -271,10 +271,6 @@ binrec' = proc ((((s, p), f), g), h) -> do
       (_, y') <- binrec' -< (((((s', y), p), f), g), h)
       h -<< (((s', x'), y'), z)
 
-----------
--- genrec?
-----------
-
 natrec :: (ArrowApply arr, ArrowChoice arr) => arr (((s, Int), arr s (t, b)), arr ((s, Int), b) (t, b)) (t, b)
 natrec = proc (((s, n), f), g) -> 
   if n <= 0 
@@ -304,10 +300,6 @@ condlinrec = proc ((s, ps), dft) -> do
       s' <- f -<< s
       res <- condlinrec -< ((s', ps), dft)
       g -<< res
-
------------------------------
--- construct: not well typed?
------------------------------
 
 times :: (ArrowApply arr, ArrowChoice arr) => arr ((s, Int), arr s s) s
 times = proc ((s, n), f) -> 
@@ -339,10 +331,6 @@ mapS = proc ((s, xs), f) ->
       (s', y) <- f -<< (s, x)
       (s'', yt) <- mapS -< ((s', xt), f)
       returnA -< (s'', y:yt)
-
-----------------------
--- fold: just use step
-----------------------
 
 filter :: Arrow arr => arr ((s, [a]), (s, a) -> (t, Bool)) (s, [a])
 filter = arr \((s, xs), f) -> (s, Prelude.filter (\x -> snd (f (s, x))) xs)
