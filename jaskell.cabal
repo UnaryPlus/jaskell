@@ -4,10 +4,10 @@ version:       0.1.0.0
 author:        Owen Bechtel
 maintainer:    ombspring@gmail.com
 
--- TODO: category:
--- TODO: synopsis:
+category: Language
+synopsis: Stack-based concatenative language embedded in Haskell
 
--- TODO: description: 
+-- TODO: description:
 
 homepage:           https://github.com/UnaryPlus/jaskell
 bug-reports:        https://github.com/UnaryPlus/jaskell/issues

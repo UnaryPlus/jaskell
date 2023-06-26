@@ -10,7 +10,6 @@ import Jaskell.Quote (jsl)
 import Jaskell (run, runOn)
 import Jaskell.Prelude
 
--- TODO: change/remove test descriptions
 spec :: Spec
 spec = do
   describe "Jaskell.Prelude.stack" do

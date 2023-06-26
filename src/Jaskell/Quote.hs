@@ -29,22 +29,7 @@ jsl = QuasiQuoter
   , quoteType = undefined
   , quoteDec = undefined 
   }
-
--- must be followed by function/constructor name
--- $    map function over top value
--- #    map binary function over top two values
--- ?    push result of monadic action
--- !    pop value and execute monadic action
--- &    map monadic action over top value
-
--- operator        map operator over top two values
--- constructor     push constructor onto stack  
--- function        apply function to stack   
--- literal         (num, string, char, unit) push value onto stack
--- [ e1, ... en ]  syntactic sugar for e1 ... en nil cons ... cons
--- ( a, b )        syntactic sugar for a b pair
--- { expr }        push translation of expr onto stack
-
+  
 data NameMode
   = Bare
   | LiftS  
@@ -201,7 +186,14 @@ quote input = do
   loc <- TH.location
   let file = TH.loc_filename loc
       (line, col) = TH.loc_start loc
-      parse = setLoc (line, col) >> spaces >> (parseProgram <* M.eof)
+
+      parse = do
+        setLoc (line, col)
+        spaces
+        prog <- parseProgram 
+        M.eof
+        return prog
+
   case M.runParser parse file input of 
     Left errors -> fail (M.errorBundlePretty errors)
     Right prog -> convertProgram prog

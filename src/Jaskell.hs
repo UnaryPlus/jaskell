@@ -25,7 +25,6 @@ popM f = Kleisli \(s, x) -> fmap (const s) (f x)
 liftSM :: Functor m => (a -> m b) -> Kleisli m (s, a) (s, b)
 liftSM f = Kleisli \(s, x) -> fmap (s, ) (f x)
 
--- TODO: change names?
 run :: (() -> t) -> t
 run f = f ()
 
