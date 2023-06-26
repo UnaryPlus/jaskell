@@ -10,6 +10,8 @@ import Jaskell.Quote (jsl)
 import Jaskell (run, runOn)
 import Jaskell.Prelude
 
+-- TODO: ensure all functions mentioned in the right order
+
 spec :: Spec
 spec = do
   describe "Jaskell.Prelude.stack" do
@@ -90,6 +92,12 @@ spec = do
   describe "Jaskell.Prelude.swons" do
     it "works" do
       run [jsl| [1,2,3] 0 swons |] `shouldBe` ((), [0,1,2,3 :: Int])
+  
+  describe "Jaskell.Prelude.uncons" do
+    return ()
+
+  describe "Jaskell.Prelude.unswons" do
+    return ()
   
   describe "Jaskell.Prelude.conjoin" do
     it "works" do
@@ -176,7 +184,7 @@ spec = do
       Prelude.map fibF [0..6] `shouldBe` [0,1,1,2,3,5,8]
   
   describe "Jaskell.Prelude.linrec" do
-    return () -- TODO: test?
+    return ()
 
   describe "Jaskell.Prelude.linrec'" do
     it "calculates factorials" do
@@ -185,7 +193,7 @@ spec = do
       Prelude.map facF [0..6] `shouldBe` [1,1,2,6,24,120,720]
   
   describe "Jaskell.Prelude.binrec" do
-    return () -- TODO: test?
+    return ()
   
   describe "Jaskell.Prelude.binrec'" do
     it "can implement quicksort" do
@@ -220,7 +228,7 @@ spec = do
       runOn ((), 0.5) test `shouldBe` ((), -0.5)
   
   describe "Jaskell.Prelude.condlinrec" do
-    return () -- TODO: test?
+    return ()
   
   describe "Jaskell.Prelude.branch" do
     it "converts bools to ints" do

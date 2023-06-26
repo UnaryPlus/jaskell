@@ -1,15 +1,19 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 module Jaskell.Quote 
-  ( jsl
+  ( -- * Quasiquoter
+    jsl
+    -- * Parser internals
   , NameMode(..), Name(..), Literal(..), Atom(..), Expr(..), Program(..)
   , Parser, parseName, parseLiteral, parseAtom, parseExpr, parseProgram
   ) where
 
+-- TODO: add module description
+
 import Data.Void (Void)
 import Control.Monad (void)
-import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
 import Control.Category ((>>>))
+import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
 
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C

@@ -2,29 +2,41 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE Arrows #-}
 module Jaskell.Prelude 
-  ( stack, unstack, newstack
-  , pop, dup, swap, popd , pop2 , dupd, dup2, swapd, rollup, rolldown
+  ( -- * Stack manipulation
+    stack, unstack, newstack
+  , pop, dup, swap, popd, pop2, dupd, dup2, swapd, rollup, rolldown    
+    -- * Ternary operator
   , choice, select
+    -- * Tuples and lists
   , pair, unpair
-  , cons, swons, uncons
+  , cons, swons, uncons, unswons
+    -- * Basic combinators
   , conjoin, disjoin
   , i, comp
   , consQ, swonsQ
   , nullary, dip, dipd, dipdd
   , app1, app2, app3, cleave
-  , ifte, whiledo
+  , ifte, branch, cond
+  , infra
+    -- * Recursive combinators
+  , whiledo
   , tailrec, linrec, linrec', binrec, binrec', natrec, listrec
-  , cond, CLROption(..), condlinrec
-  , branch, times, infra
+  , CLROption(..), condlinrec
+  , times
+    -- * List combinators
   , step, step2, map, mapS, filter, filterS, split, splitS
   , any, all, zipwith, zipwithS
   ) where
+
+-- TODO: add module description
 
 import qualified Prelude
 import Prelude hiding (map, filter, any, all, zipWith)
 import Data.List (partition)
 import Control.Applicative (liftA2)
 import Control.Arrow (Arrow, ArrowApply, ArrowChoice, arr, (>>>), (>>^), (^>>), (&&&), returnA, app)
+
+-- TODO: reorder function definitions
 
 stack :: Arrow arr => arr s (s, s)
 stack = arr \s -> (s, s)
@@ -90,6 +102,12 @@ uncons = arr \(s, xs) ->
   case xs of
     [] -> error "Jaskell.Prelude.uncons: empty list"
     x:xt -> ((s, x), xt)
+
+unswons :: Arrow arr => arr (s, [a]) ((s, [a]), a)
+unswons = arr \(s, xs) ->
+  case xs of
+    [] -> error "Jaskell.Prelude.unswons: empty list"
+    x:xt -> ((s, xt), x)
 
 conjoin :: (Arrow arr, Arrow arr') => arr ((s, arr' t (u1, Bool)), arr' t (u2, Bool)) (s, arr' t (t, Bool))
 conjoin = arr \((s, p1), p2) -> 
