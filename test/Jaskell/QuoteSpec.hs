@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE OverloadedLists #-}
 module Jaskell.QuoteSpec (spec) where
 
 import Test.Hspec (Spec, it, describe, shouldBe)
@@ -59,7 +60,7 @@ spec = do
       parse parseAtom "" "-" `shouldBe` Right (Op "-")
       parse parseAtom "" "-1" `shouldBe` Right (Lit (Integer (-1))) 
     it "parses quoted expressions" do
-      parse parseAtom "" "{ 2 dup * }" `shouldBe` Right (Quote (Expr [Lit (Integer 2), Name Bare (Fun [] "dup"), Op "*"]))
+      parse parseAtom "" "{ 2 dup * }" `shouldBe` Right (Quote (Just (Expr [Lit (Integer 2), Name Bare (Fun [] "dup"), Op "*"])))
   
   describe "Jaskell.quote.parseProgram" do
     it "parses expressions" do
