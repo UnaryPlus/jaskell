@@ -28,11 +28,13 @@ description:
   > import qualified Jaskell
   > import Jaskell.Quote (jsl)
   > import Jaskell.Prelude
-  >
+  > 
+  > main :: IO ()
   > main = Jaskell.runK [jsl| 
   >   "What's your name?" !putStrLn [ "Hello, ", ?getLine, "!" ] $concat !putStrLn 
   >   |]
-  >
+  > 
+  > sorted :: ((), [Int])
   > sorted = Jaskell.run [jsl| 
   >   DEF small = 
   >     { $null } { uncons $null } disjoin ;
