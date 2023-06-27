@@ -167,7 +167,7 @@ spec = do
   
   describe "Jaskell.Prelude.ifte" do
     it "works" do
-      let test = [jsl| { 5 >= } { 5 - } { id } ifte |]
+      let test = [jsl| { 5 >= } { 5 - } { } ifte |]
       runOn ((), 3) test `shouldBe` ((), 3 :: Int)
       runOn ((), 6) test `shouldBe` ((), 1 :: Int)
   
@@ -215,7 +215,7 @@ spec = do
     it "can implement quicksort" do
       let qsort = [jsl|
             DEF small = { $null } { uncons $null } disjoin ;
-            small { id } { uncons { < } split rolldown }
+            small { } { uncons { < } split rolldown }
             { swap cons ++ } binrec'
             |]
       let qsortF xs = snd (runOn ((), xs) qsort) :: [Int]
