@@ -1,13 +1,37 @@
+{-|
+Module     : Jaskell
+Copyright  : (c) Owen Bechtel, 2023
+License    : MIT
+Maintainer : ombspring@gmail.com
+Stability  : experimental
+-}
+
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE TupleSections #-}
 module Jaskell 
-  ( -- * Stack utilities
-    push, liftS, liftS2, pushM, popM, liftSM
-    -- * Running programs
-  , run, runOn, runK, runKOn
+  ( -- * Running programs
+    run, runOn, runK, runKOn
+    -- * Stack utilities
+  , push, liftS, liftS2, pushM, popM, liftSM
   ) where
 
 import Control.Arrow (Arrow, arr, Kleisli(Kleisli))
+
+-- | Run a direct Jaskell program on an empty stack.
+run :: (() -> t) -> t
+run f = f ()
+
+-- | Run a direct Jaskell program on the given stack.
+runOn :: s -> (s -> t) -> t
+runOn s f = f s
+
+-- | Run a monadic Jaskell program on an empty stack.
+runK :: Kleisli m () t -> m t
+runK (Kleisli f) = f ()
+
+-- | Run a monadic Jaskell program on the given stack.
+runKOn :: s -> Kleisli m s t -> m t
+runKOn s (Kleisli f) = f s
 
 -- | Push a value.
 push :: Arrow arr => a -> arr s (s, a)
@@ -32,19 +56,3 @@ popM f = Kleisli \(s, x) -> fmap (const s) (f x)
 -- | Pop the top value, feed it to a monadic action, and push the result.
 liftSM :: Functor m => (a -> m b) -> Kleisli m (s, a) (s, b)
 liftSM f = Kleisli \(s, x) -> fmap (s, ) (f x)
-
--- | Run a direct Jaskell program on an empty stack.
-run :: (() -> t) -> t
-run f = f ()
-
--- | Run a direct Jaskell program on the given stack.
-runOn :: s -> (s -> t) -> t
-runOn s f = f s
-
--- | Run a monadic Jaskell program on an empty stack.
-runK :: Kleisli m () t -> m t
-runK (Kleisli f) = f ()
-
--- | Run a monadic Jaskell program on the given stack.
-runKOn :: s -> Kleisli m s t -> m t
-runKOn s (Kleisli f) = f s
