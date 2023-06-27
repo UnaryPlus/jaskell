@@ -40,27 +40,27 @@ spec = do
     it "parses empty tuples" do
       parse parseLiteral "" "()" `shouldBe` Right Unit
   
-  describe "Jaskell.Quote.parseAtom" do
+  describe "Jaskell.Quote.parseCommand" do
     it "parses names with prefixes" do
-      parse parseAtom "" "pop" `shouldBe` Right (Name Bare (Fun [] "pop"))
-      parse parseAtom "" "DEFINE" `shouldBe` Right (Name Bare (Ctor [] "DEFINE")) 
-      parse parseAtom "" "$Just" `shouldBe` Right (Name LiftS (Ctor [] "Just"))
-      parse parseAtom "" "#Data.List.elem" `shouldBe` Right (Name LiftS2 (Fun ["Data", "List"] "elem"))
-      parse parseAtom "" "?getLine" `shouldBe` Right (Name PushM (Fun [] "getLine"))
-      parse parseAtom "" "!putStrLn" `shouldBe` Right (Name PopM (Fun [] "putStrLn"))
-      parse parseAtom "" "&IO.readFile" `shouldBe` Right (Name LiftSM (Fun ["IO"] "readFile"))
+      parse parseCommand "" "pop" `shouldBe` Right (Name Bare (Fun [] "pop"))
+      parse parseCommand "" "DEFINE" `shouldBe` Right (Name Bare (Ctor [] "DEFINE")) 
+      parse parseCommand "" "$Just" `shouldBe` Right (Name LiftS (Ctor [] "Just"))
+      parse parseCommand "" "#Data.List.elem" `shouldBe` Right (Name LiftS2 (Fun ["Data", "List"] "elem"))
+      parse parseCommand "" "?getLine" `shouldBe` Right (Name PushM (Fun [] "getLine"))
+      parse parseCommand "" "!putStrLn" `shouldBe` Right (Name PopM (Fun [] "putStrLn"))
+      parse parseCommand "" "&IO.readFile" `shouldBe` Right (Name LiftSM (Fun ["IO"] "readFile"))
     it "parses tuples" do
-      parse parseAtom "" "( 0 , () ) " `shouldBe` Right (Tup (Expr [Lit (Integer 0)]) (Expr [Lit Unit]))
-      parse parseAtom "" "(0(),((),0))" `shouldBe` Right (Tup (Expr [Lit (Integer 0), Lit Unit]) (Expr [Tup (Expr [Lit Unit]) (Expr [Lit (Integer 0)])]))
+      parse parseCommand "" "( 0 , () ) " `shouldBe` Right (Tup (Expr [Lit (Integer 0)]) (Expr [Lit Unit]))
+      parse parseCommand "" "(0(),((),0))" `shouldBe` Right (Tup (Expr [Lit (Integer 0), Lit Unit]) (Expr [Tup (Expr [Lit Unit]) (Expr [Lit (Integer 0)])]))
     it "parses lists" do
-      parse parseAtom "" "[]" `shouldBe` Right (List [])
-      parse parseAtom "" "[ 12, 0 1 pop ,'a' ] " `shouldBe` Right (List [Expr [Lit (Integer 12)], Expr [Lit (Integer 0), Lit (Integer 1), Name Bare (Fun [] "pop")], Expr [Lit (Char 'a')]])
+      parse parseCommand "" "[]" `shouldBe` Right (List [])
+      parse parseCommand "" "[ 12, 0 1 pop ,'a' ] " `shouldBe` Right (List [Expr [Lit (Integer 12)], Expr [Lit (Integer 0), Lit (Integer 1), Name Bare (Fun [] "pop")], Expr [Lit (Char 'a')]])
     it "parses operators" do
-      parse parseAtom "" "=@+&" `shouldBe` Right (Op "=@+&")
-      parse parseAtom "" "-" `shouldBe` Right (Op "-")
-      parse parseAtom "" "-1" `shouldBe` Right (Lit (Integer (-1))) 
+      parse parseCommand "" "=@+&" `shouldBe` Right (Op "=@+&")
+      parse parseCommand "" "-" `shouldBe` Right (Op "-")
+      parse parseCommand "" "-1" `shouldBe` Right (Lit (Integer (-1))) 
     it "parses quoted expressions" do
-      parse parseAtom "" "{ 2 dup * }" `shouldBe` Right (Quote (Just (Expr [Lit (Integer 2), Name Bare (Fun [] "dup"), Op "*"])))
+      parse parseCommand "" "{ 2 dup * }" `shouldBe` Right (Quote (Just (Expr [Lit (Integer 2), Name Bare (Fun [] "dup"), Op "*"])))
   
   describe "Jaskell.quote.parseProgram" do
     it "parses expressions" do

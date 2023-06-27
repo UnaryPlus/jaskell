@@ -7,7 +7,7 @@ Stability  : experimental
 
 The 'jsl' quasiquoter converts Jaskell syntax into Haskell syntax.
 
-A Jaskell expression is a sequence of commands or "atoms." An atom is one of the following:
+A Jaskell expression is a sequence of commands. An command is one of the following:
 
 * A Haskell identifier, optionally preceded by @$@, @#@, @?@, @!@, or @&@. 
   The identifier can be qualified or unqualified, and can be lowercase (function) or uppercase (data constructor).
@@ -47,8 +47,8 @@ module Jaskell.Quote
   ( -- * Quasiquoter
     jsl
     -- * Parser internals
-  , NameMode(..), Name(..), Literal(..), Atom(..), Expr(..), Program(..)
-  , Parser, parseName, parseLiteral, parseAtom, parseExpr, parseProgram
+  , NameMode(..), Name(..), Literal(..), Command(..), Expr(..), Program(..)
+  , Parser, parseName, parseLiteral, parseCommand, parseExpr, parseProgram
   ) where
 
 import Data.Void (Void)
@@ -100,7 +100,7 @@ data Literal
   | Unit
   deriving (Eq, Show)
 
-data Atom
+data Command
   = Name NameMode Name
   | Op String
   | List [Expr]
@@ -109,7 +109,7 @@ data Atom
   | Lit Literal 
   deriving (Eq, Show)
 
-newtype Expr = Expr (NonEmpty Atom)
+newtype Expr = Expr (NonEmpty Command)
   deriving (Eq, Show)
 
 data Program = Program [(String, Expr)] Expr
@@ -190,16 +190,16 @@ spaces = L.space C.space1
 symbol :: Char -> Parser ()
 symbol c = M.single c >> spaces
 
-parseList :: Parser Atom
+parseList :: Parser Command
 parseList = List <$ symbol '[' <*> M.sepBy parseExpr (symbol ',') <* symbol ']'
 
-parseTup :: Parser Atom
+parseTup :: Parser Command
 parseTup = do
   M.notFollowedBy (M.chunk "()")
   Tup <$ symbol '(' <*> parseExpr <* symbol ',' <*> parseExpr <* symbol ')'
 
-parseAtom :: Parser Atom
-parseAtom = M.choice
+parseCommand :: Parser Command
+parseCommand = M.choice
   [ Name <$> parseNameMode <*> parseName <* spaces
   , Op <$> parseOp <* spaces
   , parseList 
@@ -210,8 +210,8 @@ parseAtom = M.choice
 
 parseExpr :: Parser Expr
 parseExpr = do
-  atoms <- (:|) <$> parseAtom <*> M.many parseAtom 
-  return (Expr atoms)
+  cmds <- (:|) <$> parseCommand <*> M.many parseCommand
+  return (Expr cmds)
 
 parseDef :: Parser (String, Expr)
 parseDef = (,) <$ M.chunk "DEF" <* spaces <*> lowerName <* spaces <* symbol '=' <*> parseExpr <* symbol ';'
@@ -263,8 +263,8 @@ convertLiteral = \case
   Double r -> litE (rationalL (toRational r))
   Unit -> tupE []
 
-convertAtom :: Atom -> ExpQ
-convertAtom = \case
+convertCommand :: Command -> ExpQ
+convertCommand = \case
   Name mode n -> 
     let nexp = convertName n in
     case mode of
@@ -291,7 +291,7 @@ convertAtom = \case
   Lit lit -> appE (varE 'Jaskell.push) (convertLiteral lit)
 
 convertExpr :: Expr -> ExpQ
-convertExpr (Expr xs) = comp (fmap convertAtom xs)
+convertExpr (Expr xs) = comp (fmap convertCommand xs)
 
 convertDef :: (String, Expr) -> DecQ
 convertDef (n, x) = funD (TH.mkName n) [ clause [] (normalB (convertExpr x)) [] ]
