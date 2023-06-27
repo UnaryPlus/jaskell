@@ -1,2 +1,5 @@
 # Jaskell
-Stack-based language embedded in Haskell (not finished)
+
+A stack-based concatenative language embedded in Haskell.
+
+Documentation is available on [Hackage](https://hackage.haskell.org/package/jaskell).
